@@ -1,44 +1,35 @@
-# Диагностика аккумуляторов Makita на ESP32 с веб-интерфейсом
+## Diagnóstico de baterías Makita con ESP32 e interfaz web
+Este proyecto consiste en un dispositivo autónomo basado en el ESP32 para el diagnóstico completo de baterías de Li-ion Makita LXT. El dispositivo crea un servidor web al que se puede acceder desde cualquier smartphone o computadora vía Wi-Fi para visualizar el voltaje de las celdas, la temperatura, los ciclos de carga y ejecutar funciones de servicio.
 
-![Фото вашего устройства](screenshot_main.jpg) <!-- Загрузите фото в репозиторий и вставьте сюда ссылку -->
+## Capacidades clave
+Compatibilidad total: Soporte tanto para controladores estándar como para los modelos F0513, menos comunes.
+Interfaz web interactiva: Diseño adaptativo para dispositivos móviles y de escritorio.
+Visualización en tiempo real: Representación gráfica del paquete de baterías con indicación de color según el estado de cada celda.
+Cálculo de SOC: Cálculo automático del nivel de carga (State of Charge) basado en el voltaje promedio.
+Funciones de servicio: Posibilidad de ejecutar pruebas de LED y restablecer errores del BMS (para modelos compatibles).
+Multilingüe: Soporte para idioma Español.
 
-Этот проект представляет собой автономное устройство на базе ESP32 для полной диагностики Li-ion аккумуляторов Makita LXT. Устройство создает веб-сервер, доступ к которому можно получить с любого смартфона или компьютера по Wi-Fi для просмотра напряжений ячеек, температуры, циклов заряда и выполнения сервисных функций.
+## Componentes de hardware
+Microcontrolador ESP32 (Por ejemplo, Wemos D1 Mini ESP32 o NodeMCU-32S).
+Transistor NPN 2SD882 (o equivalente, como el BC547, aunque se prefiere el D882 por fiabilidad).
+Resistor de 1 kΩ (para la base del transistor).
+Resistor de 4.7 kΩ (resistencia pull-up; para compatibilidad con baterías antiguas, se recomienda ajustar el valor hasta 2.2 kΩ o menos para asegurar el encendido de la batería).
+Conector para la interfaz de la batería Makita.
 
-## Ключевые возможности
+## Esquema de conexión
+El circuito utiliza un interruptor de transistor para adaptar los niveles lógicos entre 3.3V (ESP32) y 5V (BMS).
 
-*   **Полная совместимость:** Поддерживаются как стандартные контроллеры, так и более редкие F0513.
-*   **Интерактивный Веб-интерфейс:** Адаптивный дизайн для мобильных и десктопных устройств.
-*   **Визуализация в реальном времени:** Графическое отображение сборки аккумулятора с цветовой индикацией состояния каждой ячейки.
-*   **Расчет SOC:** Автоматический расчет уровня заряда (State of Charge) на основе среднего напряжения.
-*   **Сервисные функции:** Возможность запускать тест светодиодов и сбрасывать ошибки BMS (для поддерживаемых моделей).
-*   **Мультиязычность:** Поддержка русского и украинского языков.
+Pin Enable de la batería -> al Colector del transistor.
+Colector del transistor -> a través del resistor de 4.7 kΩ -> a +5V en el ESP32.
+Base del transistor -> a través del resistor de 1 kΩ -> al pin GPIO de control en el ESP32.
+Emisor del transistor -> a GND.
+Pin de datos (Data) de la batería -> al pin GPIO correspondiente en el ESP32.
 
-## Аппаратные компоненты
+## Firmware
+El proyecto ha sido desarrollado en el entorno PlatformIO.
+Abre el proyecto en VS Code con el plugin PlatformIO instalado.
+Conecta el ESP32 a tu computadora.
+Haz clic en PlatformIO: Upload and Monitor para compilar, grabar el firmware e iniciar el monitor serie.
 
-*   Микроконтроллер **ESP32** (любая модель, например, Wemos D1 Mini ESP32 или NodeMCU-32S).
-*   NPN-транзистор **2SD882** (или аналог, например, BC547, но D882 предпочтительнее для надежности).
-*   Резистор **1 кОм** (для базы транзистора).
-*   Резистор **4.7 кОм** (подтягивающий резистор, рекомендуется для совместимости со старыми батареями номинал подбирать до уверенного просыпания батареи 2,2кОм а то и ниже).
-*   Коннектор для подключения к аккумулятору Makita.
-
-## Схема подключения
-![Принципиальная схема подключения](connection_diagram.jpg)
-
-*Схема реализована на транзисторном ключе для согласования логических уровней 3.3В (ESP32) и 5В (BMS).*
-
-*   **Пин `Enable` батареи** -> к **Коллектору** транзистора.
-*   **Коллектор** транзистора -> через резистор **4.7 кОм** -> к **+5В** на ESP32.
-*   **База** транзистора -> через резистор **1 кОм** -> к управляющему **GPIO пину** на ESP32.
-*   **Эмиттер** транзистора -> к **GND**.
-*   **Пин данных (Data)** батареи -> к **GPIO пину** на ESP32.
-
-## Прошивка
-
-Проект разработан в среде PlatformIO.
-1.  Откройте проект в VS Code с установленным плагином PlatformIO.
-2.  Подключите ESP32 к компьютеру.
-3.  Нажмите `PlatformIO: Upload and Monitor` для компиляции, прошивки и запуска монитора порта.
-
-## Лицензия
-
-Проект распространяется под лицензией MIT. См. файл `LICENSE` для подробностей.
+## Licencia
+Este proyecto se distribuye bajo la licencia MIT. Consulta el archivo LICENSE para más detalles.
