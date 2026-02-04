@@ -164,6 +164,7 @@ let socket;
 let isConnected = false;
 let isSimulation = false;
 let lastData = null;
+let lastPresence = false;
 let pollInterval = null;
 let historyChart = null;
 const MAX_HISTORY = 40; // Puntos máximos en el gráfico
@@ -261,20 +262,47 @@ function applyTranslations() {
     btn.classList.toggle('active', btn.id === `btn${currentLang.toUpperCase()}`);
   });
 
-  // Si estamos en simulación, actualizamos el banner de estado traducido
-  if (isSimulation) {
-    const statusText = el('statusText');
-    if (statusText) statusText.textContent = t('status_sim');
-  }
-
-  // Traducción de textos dinámicos del sistema
-  const btnOta = el('btnOta');
-  if (btnOta) btnOta.querySelector('span:last-child').textContent = currentLang === 'es' ? 'Actualizar Firmware (.bin)' : 'Update Firmware (.bin)';
+  // Actualizamos la barra de estado completa (Simulación, Presencia, etc.)
+  refreshStatus();
 
   // Re-renderizamos los datos dinámicos si existen para aplicar el nuevo idioma
   if (lastData) {
     renderStaticTable(lastData);
     renderCells(lastData);
+  }
+}
+
+/**
+ * Actualiza la barra de estado (color y texto) con traducciones vigentes.
+ */
+function refreshStatus() {
+  const statusWidget = el('statusWidget');
+  const statusText = el('statusText');
+  if (!statusText || !statusWidget) return;
+
+  if (isSimulation) {
+    statusText.textContent = t('status_sim');
+    statusWidget.style.background = '#fff3e0'; // Naranja suave
+    statusText.style.color = '#e65100';
+    return;
+  }
+
+  if (!isConnected) {
+    statusText.textContent = t('status_offline');
+    statusWidget.style.background = '#ffebee';
+    statusText.style.color = '#c62828';
+    return;
+  }
+
+  // Estamos conectados (Online)
+  if (lastPresence) {
+    statusText.textContent = t('status_online') + t('msg_presence_detected');
+    statusWidget.style.background = '#e8f5e9';
+    statusText.style.color = '#2e7d32';
+  } else {
+    statusText.textContent = t('status_online') + t('msg_presence_empty');
+    statusWidget.style.background = '#fff3e0';
+    statusText.style.color = '#e65100';
   }
 }
 
@@ -361,11 +389,7 @@ function connect() {
 
     socket.onclose = () => {
       isConnected = false;
-      if (statusText) {
-        statusText.textContent = t('status_offline');
-        el('statusWidget').style.background = '#ffebee'; // Rojo suave
-        statusText.style.color = '#c62828';
-      }
+      refreshStatus();
       // Si el socket se cierra, esperamos un poco para intentar reconectar o pasar a simulación
       setTimeout(() => {
         if (!isConnected) {
@@ -402,6 +426,26 @@ function enableSimulation() {
     statusText.style.color = '#e65100';
   }
 
+  let simScenario = 0;
+  const scenarios = [
+    { // 1. Saludable
+      model: "BL1850B", cycles: 42, lock: "DESBLOQUEADA", cap: "5.0Ah", date: "15/05/2023",
+      volts: [4.01, 3.98, 3.95, 3.92, 3.99], diff: 0.12, pack: 19.85
+    },
+    { // 2. Batería Baja (Necesita carga)
+      model: "BL1830", cycles: 120, lock: "DESBLOQUEADA", cap: "3.0Ah", date: "10/01/2022",
+      volts: [3.35, 3.32, 3.30, 3.34, 3.31], diff: 0.05, pack: 16.62
+    },
+    { // 3. Desbalanceada / Celda Dañada (Aviso)
+      model: "BL1850", cycles: 210, lock: "DESBLOQUEADA", cap: "5.0Ah", date: "22/11/2021",
+      volts: [4.05, 4.02, 3.15, 3.98, 4.01], diff: 0.90, pack: 19.21
+    },
+    { // 4. Bloqueada (BMS Error)
+      model: "BL1860B", cycles: 450, lock: "BLOQUEADA", cap: "6.0Ah", date: "05/06/2020",
+      volts: [3.85, 3.82, 3.79, 3.81, 3.84], diff: 0.06, pack: 19.11
+    }
+  ];
+
   // Sobrescribimos sendCommand para interceptar comandos y responder con fakes
   const originalSend = sendCommand;
   window.sendCommand = (cmd, params) => {
@@ -411,30 +455,38 @@ function enableSimulation() {
       if (cmd === 'presence') {
         handleMessage({ type: 'presence', present: true });
       } else if (cmd === 'read_static') {
+        const s = scenarios[simScenario];
         handleMessage({
           type: 'static_data',
           features: { read_dynamic: true, led_test: true, clear_errors: true },
           data: {
-            model: "BL1850B",
-            charge_cycles: 42,
-            lock_status: "DESBLOQUEADA",
-            capacity: "5.0Ah",
-            mfg_date: "15/05/2023",
-            pack_voltage: 19.85,
+            model: s.model,
+            charge_cycles: s.cycles,
+            lock_status: s.lock,
+            capacity: s.cap,
+            mfg_date: s.date,
+            pack_voltage: s.pack,
             rom_id: "28 AF B1 04 00 00 00 E2",
-            cell_voltages: [4.01, 3.98, 3.95, 3.92, 3.99],
-            cell_diff: 0.12,
-            temp1: 24.5,
-            temp2: 25.1
+            cell_voltages: s.volts,
+            cell_diff: s.diff,
+            temp1: 24.5 + (simScenario * 2),
+            temp2: 25.1 + (simScenario * 2)
           }
         });
+        // Rotamos para la próxima lectura
+        simScenario = (simScenario + 1) % scenarios.length;
       } else if (cmd === 'read_dynamic') {
+        // Usamos el último escenario cargado para simular fluctuación
+        const lastBase = scenarios[(simScenario + scenarios.length - 1) % scenarios.length];
+        const jitter = () => (Math.random() * 0.05) - 0.025;
+        const newVolts = lastBase.volts.map(v => v + jitter());
+
         handleMessage({
           type: 'dynamic_data',
           data: {
-            pack_voltage: 19.5 + Math.random(),
-            cell_voltages: [3.9 + Math.random() * 0.2, 3.9 + Math.random() * 0.2, 3.9 + Math.random() * 0.2, 3.9 + Math.random() * 0.2, 3.9 + Math.random() * 0.2],
-            cell_diff: 0.05 + Math.random() * 0.1,
+            pack_voltage: newVolts.reduce((a, b) => a + b, 0),
+            cell_voltages: newVolts,
+            cell_diff: Math.max(...newVolts) - Math.min(...newVolts),
             temp1: 25.4 + Math.random() * 5,
             temp2: 24.8 + Math.random() * 5
           }
@@ -739,17 +791,10 @@ function toggleAutoPolling(active) {
 }
 
 function updatePresence(present) {
-  const statusWidget = el('statusWidget');
-  const statusText = el('statusText');
+  lastPresence = present;
+  refreshStatus();
 
-  if (present && isConnected) {
-    statusText.textContent = t('status_online') + t('msg_presence_detected');
-    if (statusWidget) statusWidget.style.background = '#e8f5e9';
-    statusText.style.color = '#2e7d32';
-  } else if (isConnected) {
-    statusText.textContent = t('status_online') + t('msg_presence_empty');
-    if (statusWidget) statusWidget.style.background = '#fff3e0'; // Naranja suave (advertencia)
-    statusText.style.color = '#e65100';
+  if (!present && isConnected) {
     el('overviewCard').classList.add('hidden');
     el('serviceActions').classList.add('hidden');
     lastData = null; // Limpiar datos previos

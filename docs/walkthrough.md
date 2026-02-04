@@ -10,6 +10,7 @@
 - **Web Operativa**: Archivos LittleFS cargados con nuevas funciones.
 - **Modo WiFi Station**: El ESP32 ya puede conectarse a un router externo (Configurable desde la web).
 - **Gráficos**: Visualización en tiempo real de la evolución de las celdas.
+- **Simulación Avanzada**: Ahora el modo simulación incluye 4 estados reales (Saludable, Baja, Dañada y Bloqueada) que rotan al pulsar "Leer Info".
 - **Sincronización GitHub**: Proyecto configurado con `.gitignore`, `README.md` y subido correctamente al repositorio remoto.
 
 ## Cómo usar las nuevas funciones
