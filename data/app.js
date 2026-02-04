@@ -86,7 +86,11 @@ const TRANSLATIONS = {
     lbl_total_voltage: "Voltaje Pack",
     bal_ok: "Equilibrado",
     bal_warn: "Desviación",
-    bal_crit: "Crítico"
+    bal_crit: "Crítico",
+    ota_title: "Actualización de Firmware",
+    ota_desc: "Mantén tu dispositivo al día con la última versión (.bin).",
+    btn_ota_select: "Seleccionar Archivo",
+    ota_msg_uploading: "Subiendo..."
   },
   en: {
     subtitle: "Battery Diagnostics",
@@ -160,7 +164,11 @@ const TRANSLATIONS = {
     lbl_total_voltage: "Pack Voltage",
     bal_ok: "Balanced",
     bal_warn: "Imbalanced",
-    bal_crit: "Critical"
+    bal_crit: "Critical",
+    ota_title: "Firmware Update",
+    ota_desc: "Keep your device up to date with the latest version (.bin).",
+    btn_ota_select: "Select File",
+    ota_msg_uploading: "Uploading..."
   }
 };
 
@@ -965,14 +973,16 @@ function uploadFirmware(file) {
   const xhr = new XMLHttpRequest();
   const bar = el('otaBar');
   const container = el('otaProgress');
+  const percentText = el('otaPercent');
 
   container.classList.remove('hidden');
   xhr.open('POST', '/update', true);
 
   xhr.upload.onprogress = (e) => {
     if (e.lengthComputable) {
-      const pct = (e.loaded / e.total) * 100;
+      const pct = Math.round((e.loaded / e.total) * 100);
       bar.style.width = pct + '%';
+      if (percentText) percentText.textContent = pct + '%';
     }
   };
 

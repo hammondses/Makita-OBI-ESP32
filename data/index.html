@@ -167,34 +167,50 @@
                 <div class="card-header">
                     <h2 data-i18n="lbl_system_title">Sistema & FW Update</h2>
                 </div>
-                <div class="system-card">
-                    <div class="ota-container">
-                        <input type="file" id="otaFile" accept=".bin" class="hidden" title="Archivo de firmware">
-                        <button id="btnOta" class="pro-btn">
-                            <span class="btn-icon">📦</span> <span>Actualizar Firmware (.bin)</span>
-                        </button>
-                        <div id="otaProgress" class="progress-bar-container hidden">
-                            <div class="progress-bar-fill" id="otaBar"></div>
+                <div class="ota-modern-card">
+                    <div class="ota-status-header">
+                        <div class="ota-icon">📦</div>
+                        <div class="ota-info">
+                            <span class="ota-title" data-i18n="ota_title">Actualización de Firmware</span>
+                            <span class="ota-desc" data-i18n="ota_desc">Sube un archivo .bin para mantener tu
+                                dispositivo al día.</span>
                         </div>
                     </div>
 
-                    <hr class="system-divider">
-
-                    <div class="wifi-config-container">
-                        <h3 data-i18n="lbl_wifi_config">Configuración WiFi (Modo Estación)</h3>
-                        <div class="input-group">
-                            <input type="text" id="wifiSSID" placeholder="Nombre de red (SSID)"
-                                data-i18n-hold="lbl_wifi_ssid">
-                            <input type="password" id="wifiPass" placeholder="Contraseña"
-                                data-i18n-hold="lbl_wifi_pass">
-                        </div>
-                        <button id="btnSaveWifi" class="pro-btn blue-btn">
-                            <span class="btn-icon">🌐</span> <span data-i18n="btn_save_wifi">Conectar al WiFi</span>
+                    <div class="ota-action-area">
+                        <input type="file" id="otaFile" accept=".bin" class="hidden">
+                        <button id="btnOta" class="ota-main-btn" data-i18n="btn_ota_select">
+                            Seleccionar Archivo
                         </button>
-                        <p class="hint" data-i18n="lbl_wifi_hint">El ESP32 se reiniciará para conectar. Mantendrá el AP
-                            Makita como respaldo.</p>
+                    </div>
+
+                    <div id="otaProgress" class="ota-progress-modern hidden">
+                        <div class="ota-progress-labels">
+                            <span id="otaStatusMsg" data-i18n="ota_msg_uploading">Subiendo...</span>
+                            <span id="otaPercent">0%</span>
+                        </div>
+                        <div class="ota-bar-bg">
+                            <div class="ota-bar-fill" id="otaBar"></div>
+                        </div>
                     </div>
                 </div>
+
+                <hr class="system-divider">
+
+                <div class="wifi-config-container">
+                    <h3 data-i18n="lbl_wifi_config">Configuración WiFi (Modo Estación)</h3>
+                    <div class="input-group">
+                        <input type="text" id="wifiSSID" placeholder="Nombre de red (SSID)"
+                            data-i18n-hold="lbl_wifi_ssid">
+                        <input type="password" id="wifiPass" placeholder="Contraseña" data-i18n-hold="lbl_wifi_pass">
+                    </div>
+                    <button id="btnSaveWifi" class="pro-btn blue-btn">
+                        <span class="btn-icon">🌐</span> <span data-i18n="btn_save_wifi">Conectar al WiFi</span>
+                    </button>
+                    <p class="hint" data-i18n="lbl_wifi_hint">El ESP32 se reiniciará para conectar. Mantendrá el AP
+                        Makita como respaldo.</p>
+                </div>
+            </div>
             </div>
         </section>
 
