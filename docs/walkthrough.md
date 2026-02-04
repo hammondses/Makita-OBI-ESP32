@@ -9,6 +9,7 @@
 - **Web Operativa**: Archivos LittleFS cargados con nuevas funciones.
 - **Modo WiFi Station**: El ESP32 ya puede conectarse a un router externo (Configurable desde la web).
 - **Gráficos**: Visualización en tiempo real de la evolución de las celdas.
+- **Sincronización GitHub**: Proyecto configurado con `.gitignore`, `README.md` y subido correctamente al repositorio remoto.
 
 ## Cómo usar las nuevas funciones
 
