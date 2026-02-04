@@ -4,6 +4,7 @@
 
 ## Logros
 
+- **Proyecto Base**: Refactorización completa del lector de BMS Makita para ESP32, basado en el proyecto original de [Belik1982](https://github.com/Belik1982/esp32-makita-bms-reader).
 - **Compilación Corregida**: Se solucionaron los errores de `Serial` y de enlazador (`undefined reference`) en la clase `MakitaBMS`.
 - **Carga Exitosa**: Se superó el error `PermissionError(13)` del chip CH340 ajustando velocidades y refrescando los drivers de Windows.
 - **Web Operativa**: Archivos LittleFS cargados con nuevas funciones.
