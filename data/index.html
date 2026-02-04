@@ -1,94 +1,217 @@
 <!doctype html>
-<html lang="uk">
+<html lang="es">
+
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>OpenMakita ESP</title>
-    <link rel="stylesheet" href="/style.css">
+    <title>Makita OBI ESP32</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="./style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
-<header class="topbar">
-  <div class="header-left">
-    <div class="logo">🔋</div>
-    <div class="title-block">
-      <div class="title">OpenMakita ESP</div>
-      <div class="subtitle" id="subtitle">Диагностика батареи</div>
-    </div>
-  </div>
-  <div class="header-right">
-     <div class="lang-block">
-        <button id="btnEN" class="lang">EN</button>
-        <button id="btnUA" class="lang active">UA</button>
-        <button id="btnRU" class="lang">RU</button>
-      </div>
-  </div>
-   <div class="header-status" id="statusWidget">
-      <div id="statusText">…</div>
-    </div>
-</header>
-<main class="container">
-    <div id="limitedSupportAlert" class="alert info" style="display: none;"></div>
-    
-    <section class="actions card">
-        <div class="actions-grid">
-            <div class="button-row">
-                <div class="button-pair">
-                    <button id="btnReadStatic" class="big btn-data">1. Read Info</button>
-                    <button id="btnReadDynamic" class="big" disabled>2. Update Data</button>
-                </div>
-            </div>
-            <div class="hint-row">
-                <div class="hint-pair">
-                    <div class="btn-hint" id="hintReadStatic">Identify model and read static data</div>
-                    <div class="btn-hint" id="hintReadDynamic">Read voltages and temperatures</div>
-                </div>
-            </div>
-            
-            <div id="serviceActions" class="service-actions-block"> 
-                <div class="button-row">
-                    <div class="button-pair">
-                        <button id="btnClearErrors" class="big" disabled>Clear Errors</button>
-                        <button id="btnLed" class="big" disabled>Toggle LED</button>
-                    </div>
-                </div>
-                <div class="hint-row">
-                    <div class="hint-pair">
-                        <div class="btn-hint" id="hintClear">Reset BMS errors</div>
-                        <div class="btn-hint" id="hintLed">Turn on/off battery LEDs</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div id="notification" style="display:none;"></div>
-    </section>
-    
-    <section class="card" id="overviewCard" style="display: none;">
-        <div class="card-header">
-            <h2 id="sectionTitle">Battery Parameters</h2>
-        </div>
-        <div class="kv" id="data-table"></div>
-        
-        <div class="battery-container">
-            <div class="battery-pack"> 
-                <div class="battery-cells" id="cellsArea">
-                    </div>
-                <div class="battery-numbers" id="cellsNumbers">
-                    </div>
-            </div>
-        </div>
-        
-        <div class="pack-summary" id="packSummary"></div>
-        <div class="alerts" id="alertsArea"></div>
-    </section>
 
-    <details class="log-spoiler card small">
-        <summary id="rawTitle">Log</summary>
-        <pre id="log" class="logbox">Initializing...</pre>
-    </details>
-</main>
-<footer class="footer">
-  <div id="footerText">Интерфейс: UA / RU — Переключить в верхнем меню. Версия: ESP-OBI Web UI</div>
-</footer>
-<script src="/app.js"></script>
+<body>
+
+    <header class="topbar glass">
+        <div class="header-left">
+            <span class="logo">🔋</span>
+            <div class="title-block">
+                <div class="title">Makita OBI ESP32</div>
+                <div class="subtitle" id="subtitle" data-i18n="subtitle">Diagnóstico de Batería</div>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <div class="lang-block system-block">
+                <button id="btnSystem" class="lang">⚙️</button>
+            </div>
+            <div class="lang-block theme-block">
+                <button id="themeLight" class="lang">☀️</button>
+                <button id="themeDark" class="lang">🌙</button>
+            </div>
+            <div class="lang-block">
+                <button id="btnEN" class="lang">EN</button>
+                <button id="btnES" class="lang active">ES</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Indicador de Estado Flotante -->
+        <div class="header-status glass" id="statusWidget">
+            <span id="statusText">Conectando...</span>
+        </div>
+
+        <div id="limitedSupportAlert" class="alert info glass hidden"></div>
+
+        <!-- Sección de Comandos -->
+        <section class="card glass">
+            <div class="card-header">
+                <h2 data-i18n="sectionTitle">Operaciones</h2>
+            </div>
+
+            <div class="actions-grid">
+                <div class="switch-container">
+                    <span class="switch-label" id="lblAutoPoll" data-i18n="lbl_auto">Auto-lectura</span>
+                    <label class="switch" for="checkAuto">
+                        <input type="checkbox" id="checkAuto" aria-labelledby="lblAutoPoll">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="button-pair">
+                    <button id="btnReadStatic" class="big btn-data" data-i18n="btn_read">Leer Info</button>
+                    <button id="btnReadDynamic" class="big" disabled data-i18n="btn_dynamic">Leer Voltajes</button>
+                </div>
+
+                <div id="serviceActions" class="service-actions-block hidden">
+                    <div class="button-pair">
+                        <button id="btnClearErrors" class="big" disabled data-i18n="btn_clear_err">Resetear
+                            Errores</button>
+                        <button id="btnLed" class="big" disabled data-i18n="btn_led_test">Test LED</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Vista General de la Batería -->
+        <section class="card glass hidden" id="overviewCard">
+            <div class="card-header">
+                <h2 data-i18n="section_overview">Estado del Paquete</h2>
+            </div>
+
+            <!-- Tabla de Información -->
+            <div class="kv" id="data-table"></div>
+
+            <!-- Visualización de Celdas -->
+            <div class="battery-container">
+                <div class="battery-pack">
+                    <div class="battery-cells" id="cellsArea">
+                        <!-- Las celdas y números se inyectan aquí vía JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="pack-summary" id="packSummary"></div>
+
+            <!-- Diagnóstico Avanzado -->
+            <div class="diag-grid">
+                <div class="diag-item">
+                    <span class="diag-label" data-i18n="lbl_soh">SOH (Salud)</span>
+                    <div id="sohRing" class="soh-ring">--%</div>
+                    <span id="sohLabel" class="diag-value">---</span>
+                </div>
+                <div class="diag-item">
+                    <span class="diag-label" data-i18n="lbl_temp">Temperatura</span>
+                    <div class="temp-gauges-container">
+                        <div class="temp-gauge">
+                            <div id="tempBar1" class="temp-bar"></div>
+                        </div>
+                        <div class="temp-gauge">
+                            <div id="tempBar2" class="temp-bar"></div>
+                        </div>
+                    </div>
+                    <span id="tempValues" class="diag-value">--°C | --°C</span>
+                </div>
+            </div>
+
+            <!-- Modelo y Comparativa -->
+            <div id="modelSection" class="analytics-section hidden">
+                <span class="diag-label" data-i18n="lbl_model_compare">Comparativa de Modelo (Nominal)</span>
+                <div class="model-grid" id="modelComparison">
+                    <!-- Inyectado por JS -->
+                </div>
+            </div>
+
+            <!-- Gráfico de Desbalanceo (HUD) -->
+            <div class="analytics-section">
+                <span class="diag-label" data-i18n="lbl_imbalance">Desbalanceo (HUD)</span>
+                <div id="imbalanceHUD" class="hud-container">
+                    <!-- Barras de desviación inyectadas por JS -->
+                </div>
+            </div>
+
+            <!-- Gráfico de Historial de Voltajes -->
+            <div class="analytics-section">
+                <span class="diag-label" data-i18n="lbl_history">Gráfico de Historial (Tiempo Real)</span>
+                <div class="chart-container">
+                    <canvas id="historyChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Asistente de Balanceo -->
+            <div id="balanceSection" class="analytics-section hidden">
+                <span class="diag-label balance-warning-label" data-i18n="lbl_balance_title">⚠️ Asistente de Balanceo
+                    Manual</span>
+                <div class="balance-assistant" id="balanceAssistant">
+                    <!-- Instrucciones inyectadas por JS -->
+                </div>
+            </div>
+
+            <div class="alerts" id="alertsArea"></div>
+
+            <div class="report-block">
+                <button id="btnExport" class="big pro-btn">
+                    <span class="btn-icon">📄</span> <span data-i18n="lbl_report">Generar informe</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Sistema y Actualización (Fuera de la tarjeta de batería) -->
+        <section class="system-section hidden" id="systemSection">
+            <div class="card glass">
+                <div class="card-header">
+                    <h2 data-i18n="lbl_system_title">Sistema & FW Update</h2>
+                </div>
+                <div class="system-card">
+                    <div class="ota-container">
+                        <input type="file" id="otaFile" accept=".bin" class="hidden" title="Archivo de firmware">
+                        <button id="btnOta" class="pro-btn">
+                            <span class="btn-icon">📦</span> <span>Actualizar Firmware (.bin)</span>
+                        </button>
+                        <div id="otaProgress" class="progress-bar-container hidden">
+                            <div class="progress-bar-fill" id="otaBar"></div>
+                        </div>
+                    </div>
+
+                    <hr class="system-divider">
+
+                    <div class="wifi-config-container">
+                        <h3 data-i18n="lbl_wifi_config">Configuración WiFi (Modo Estación)</h3>
+                        <div class="input-group">
+                            <input type="text" id="wifiSSID" placeholder="Nombre de red (SSID)"
+                                data-i18n-hold="lbl_wifi_ssid">
+                            <input type="password" id="wifiPass" placeholder="Contraseña"
+                                data-i18n-hold="lbl_wifi_pass">
+                        </div>
+                        <button id="btnSaveWifi" class="pro-btn blue-btn">
+                            <span class="btn-icon">🌐</span> <span data-i18n="btn_save_wifi">Conectar al WiFi</span>
+                        </button>
+                        <p class="hint" data-i18n="lbl_wifi_hint">El ESP32 se reiniciará para conectar. Mantendrá el AP
+                            Makita como respaldo.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Depuración / Logs -->
+        <details class="log-spoiler card small glass">
+            <summary id="rawTitle" data-i18n="rawTitle">Consola de Sistema</summary>
+            <pre id="log" class="logbox" data-i18n="log_waiting">Esperando conexión...</pre>
+        </details>
+
+        <div id="notification" class="hidden"></div>
+        <div id="toast-container"></div>
+    </main>
+
+    <footer class="footer">
+        <div id="footerText" data-i18n="footerText">Versión 2.0 Pro • ESP32 Control</div>
+    </footer>
+
+    <script src="./app.js"></script>
 </body>
+
 </html>

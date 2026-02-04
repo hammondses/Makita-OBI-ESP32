@@ -1,35 +1,36 @@
-## Diagnóstico de baterías Makita con ESP32 e interfaz web
-Este proyecto consiste en un dispositivo autónomo basado en el ESP32 para el diagnóstico completo de baterías de Li-ion Makita LXT. El dispositivo crea un servidor web al que se puede acceder desde cualquier smartphone o computadora vía Wi-Fi para visualizar el voltaje de las celdas, la temperatura, los ciclos de carga y ejecutar funciones de servicio.
+# Makita OBI ESP32 Pro 🔋
 
-## Capacidades clave
-* Compatibilidad total: Soporte tanto para controladores estándar como para los modelos F0513, menos comunes.
-* Interfaz web interactiva: Diseño adaptativo para dispositivos móviles y de escritorio.
-* Visualización en tiempo real: Representación gráfica del paquete de baterías con indicación de color según el estado de cada celda.
-* Cálculo de SOC: Cálculo automático del nivel de carga (State of Charge) basado en el voltaje promedio.
-* Funciones de servicio: Posibilidad de ejecutar pruebas de LED y restablecer errores del BMS (para modelos compatibles).
-* Multilingüe: Soporte para idioma Español.
+Herramienta avanzada de diagnóstico para baterías Makita LXT (18V) basada en ESP32.
 
-## Componentes de hardware
-* Microcontrolador ESP32 (Por ejemplo, Wemos D1 Mini ESP32 o NodeMCU-32S).
-* Transistor NPN 2SD882 (o equivalente, como el BC547, aunque se prefiere el D882 por fiabilidad).
-* Resistencia de 1 kΩ (para la base del transistor).
-* Resistencia de 4.7 kΩ (resistencia pull-up; para compatibilidad con baterías antiguas, se recomienda ajustar el valor hasta 2.2 kΩ o menos para asegurar el encendido de la batería).
-* Conector para la interfaz de la batería Makita.
+## ✨ Características de la Versión 2.0 Pro
 
-## Esquema de conexión
-El circuito utiliza un interruptor de transistor para adaptar los niveles lógicos entre 3.3V (ESP32) y 5V (BMS).
+- **Triple Verificación de Presencia**: Eliminación de falsos positivos (baterías fantasma).
+- **WiFi Dual**: Acceso simultáneo vía AP (Directo) o Station (Red de tu taller).
+- **Gráficos en Tiempo Real**: Historial de voltajes celda por celda para diagnóstico de fatiga.
+- **Asistente de Balanceo**: Indicaciones precisas para equilibrar packs descompensados.
+- **Interfaz Web Premium**: Con modo oscuro, bilingüe (ES/EN) y visualización HUD.
+- **Compatibilidad**: Diseñado para funcionar en cualquier ESP32 (incluido Mini/SuperMini).
 
-* Pin ON de la batería -> al Colector del transistor.
-* Colector del transistor -> a través del resistor de 4.7 kΩ -> a +5V en el ESP32.
-* Base del transistor -> a través del resistor de 1 kΩ -> al pin GPIO de control en el ESP32.
-* Emisor del transistor -> a GND.
-* Pin de datos (Data) de la batería -> al pin GPIO correspondiente en el ESP32.
+## 📂 Estructura del Proyecto
 
-## Firmware
-El proyecto ha sido desarrollado en el entorno PlatformIO.
-Abre el proyecto en VS Code con el plugin PlatformIO instalado.
-Conecta el ESP32 a tu computadora.
-Haz clic en PlatformIO: Upload and Monitor para compilar, grabar el firmware e iniciar el monitor serie.
+- `/src`: Código fuente del firmware (C++).
+- `/data`: Interfaz web (HTML/JS/CSS).
+- `/lib`: Librerías personalizadas para el protocolo OneWire de Makita.
+- `/docs`: Documentación técnica, manuales y esquemas eléctricos.
 
-## Licencia
-Este proyecto se distribuye bajo la licencia MIT. Consulta el archivo LICENSE para más detalles.
+## 🛠️ Requisitos de Hardware
+
+- **ESP32** (Cualquier variante).
+- Transistor NPN (BC547 o similar) + Resistencia 1kΩ (para el pin ENABLE).
+- Resistencia Pull-up 4.7kΩ (para el pin DATA).
+- [Ver Esquema Eléctrico](./docs/esquema_electrico.md)
+
+## 🚀 Instalación rápida
+
+1. Abre el proyecto en **VS Code** con **PlatformIO**.
+2. Conecta tu ESP32.
+3. Ejecuta **Upload** (Firmware).
+4. Ejecuta **Upload Filesystem Image** (Interfaz Web).
+
+---
+*Desarrollado con ❤️ para la comunidad de herramientas eléctricas.*

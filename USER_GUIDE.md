@@ -1,41 +1,41 @@
-# Руководство Пользователя
+# Guía del Usuario
 
-## 1. Первое включение и подключение
+## 1. Primer encendido y conexión
 
-1.  **Подключите аккумулятор Makita** к диагностическому устройству.
-2.  **Подайте питание** на само устройство (через USB-порт ESP32).
-3.  **Возьмите ваш смартфон или ноутбук** и откройте список доступных Wi-Fi сетей.
-4.  Найдите и подключитесь к сети с названием **`OpenMakita-ESP`**. Пароль не требуется.
-5.  После подключения к этой сети на вашем устройстве может автоматически открыться страница авторизации. Если этого не произошло, откройте браузер и перейдите по адресу **`http://192.168.4.1`**.
+1. **Conecta la batería Makita** al dispositivo de diagnóstico.
+2. **Suministra energía** al dispositivo (a través del puerto USB del ESP32).
+3. **Toma tu smartphone o portátil** y abre la lista de redes Wi-Fi disponibles.
+4. Busca y conéctate a la red llamada **`OpenMakita-ESP`**. No se requiere contraseña.
+5. Tras conectarte a esta red, es posible que se abra automáticamente una página de inicio de sesión en tu dispositivo. Si esto no ocurre, abre el navegador y dirígete a la dirección **`http://192.168.4.1`**.
 
-## 2. Использование веб-интерфейса
+## 2. Uso de la interfaz web
 
-Вы увидите главный экран программы.
+Verás la pantalla principal del programa.
 
-### Шаг 1: Чтение информации о батарее
+### Paso 1: Lectura de información de la batería
 
-*   Нажмите большую синюю кнопку **"1. Считать Инфо"**.
-*   Устройство определит модель вашей батареи и покажет основную информацию: циклы заряда, дату производства и т.д.
-*   После этого станут активны другие кнопки.
+* Presiona el botón azul grande **"1. Leer Info"**.
+* El dispositivo detectará el modelo de tu batería y mostrará la información básica: ciclos de carga, fecha de fabricación, etc.
+* Después de esto, el resto de los botones se activarán.
 
-### Шаг 2: Просмотр данных в реальном времени
+### Paso 2: Visualización de datos en tiempo real
 
-*   Под таблицей с основной информацией появится **графическая схема вашей батареи**.
-*   Каждый прямоугольник — это одна ячейка. Внутри него указано ее точное напряжение.
-*   **Цвет ячейки** показывает ее состояние:
-    *   **Зеленый:** Ячейка полностью заряжена (близко к 4.2В).
-    *   **Желтый/Салатовый:** Нормальное рабочее напряжение.
-    *   **Красный:** Ячейка сильно разряжена (близко к 2.8В).
-*   Под схемой отображается **общее напряжение** всей сборки и **уровень заряда в процентах (SOC)**.
-*   Для обновления этих данных нажмите кнопку **"2. Обновить данные"**.
+* Debajo de la tabla con la información básica aparecerá un **esquema gráfico de tu batería**.
+* Cada rectángulo representa una celda. Dentro de él se indica su voltaje exacto.
+* El **color de la celda** indica su estado:
+  * **Verde:** Celda completamente cargada (cerca de 4.2V).
+  * **Amarillo/Verde claro:** Voltaje de funcionamiento normal.
+  * **Rojo:** Celda muy descargada (cerca de 2.8V).
+* Debajo del esquema se muestra el **voltaje total** de todo el conjunto y el **nivel de carga en porcentaje (SOC)**.
+* Para actualizar estos datos, presiona el botón **"2. Actualizar datos"**.
 
-### Шаг 3: Диагностика и предупреждения
+### Paso 3: Diagnóstico y advertencias
 
-*   **Дисбаланс:** Если одна из ячеек на схеме выделена **серым цветом и пунктирной линией**, это значит, что она значительно отстает от других. Под схемой появится **желтое предупреждение** о необходимости балансировки.
-*   **Критический разряд:** Если напряжение ячейки упадет слишком низко, под схемой появится **красное предупреждение** о том, что элемент, возможно, неисправен.
-*   **Ограниченная поддержка:** Для некоторых моделей батарей (например, с контроллером F0513) сервисные функции недоступны. В этом случае вы увидите **синее информационное сообщение** об этом, а кнопки "Тест LED" и "Очистить ошибки" останутся неактивными.
+* **Desequilibrio:** Si una de las celdas en el esquema aparece resaltada en **color gris y con una línea punteada**, significa que tiene un nivel significativamente inferior a las demás. Aparecerá una **advertencia amarilla** debajo del esquema indicando la necesidad de equilibrado (balaceo).
+* **Descarga crítica:** Si el voltaje de una celda cae demasiado, aparecerá una **advertencia roja** bajo el esquema indicando que el elemento podría estar defectuoso.
+* **Soporte limitado:** Para algunos modelos de batería (por ejemplo, con controlador F0513), las funciones de servicio no están disponibles. En este caso, verás un **mensaje informativo azul** al respecto, y los botones "Test LED" y "Limpiar errores" permanecerán inactivos.
 
-### Шаг 4: Сервисные функции (для поддерживаемых батарей)
+### Paso 4: Funciones de servicio (para baterías compatibles)
 
-*   **"Очистить ошибки"**: Нажмите эту кнопку, если в таблице "Код статуса" отображается ошибка, чтобы попытаться сбросить ее.
-*   **"Тест LED"**: Нажмите эту кнопку, чтобы включить светодиоды на корпусе аккумулятора. Повторное нажатие выключит их.
+* **"Limpiar errores"**: Presiona este botón si en la tabla "Código de estado" aparece un error, para intentar restablecerlo.
+* **"Test LED"**: Presiona este botón para encender los LEDs en el cuerpo de la batería. Al presionarlo de nuevo se apagarán.

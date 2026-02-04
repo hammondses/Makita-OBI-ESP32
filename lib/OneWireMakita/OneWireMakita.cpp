@@ -1,80 +1,98 @@
-// lib/OneWireMakita/OneWireMakita.cpp
+// lib/OneWireMakita/OneWireMakita.cpp - IMPLEMENTACIÓN DE BAJO NIVEL
 
 #include "OneWireMakita.h"
 
-// Мьютекс для защиты критических секций от прерываний FreeRTOS,
-// чтобы гарантировать точность таймингов.
+// Mutex para proteger los tiempos críticos en sistemas con múltiples tareas (FreeRTOS)
+// Impide que una interrupción de red afecte a los micro-tiempos del bus.
 static portMUX_TYPE oneWireMux = portMUX_INITIALIZER_UNLOCKED;
 
-// Конструктор класса
-OneWireMakita::OneWireMakita(uint8_t pin) {
-    _pin = (gpio_num_t)pin;
-    // Настраиваем пин в режим "Open Drain" ОДИН РАЗ.
-    // Это самый эффективный и правильный способ для реализации протоколов с одной шиной.
-    // digitalWrite(HIGH) "отпускает" шину, позволяя подтягивающему резистору поднять ее.
-    // digitalWrite(LOW) активно притягивает шину к земле.
-    pinMode(_pin, OUTPUT_OPEN_DRAIN);
-    digitalWrite(_pin, HIGH); // Начальное состояние - шина свободна
+/**
+ * Constructor de la clase OneWireMakita.
+ * El pin se configura en modo OUTPUT_OPEN_DRAIN para permitir la comunicación bidireccional
+ * sin riesgo de cortocircuito (la línea sube mediante una resistencia de pull-up).
+ */
+OneWireMakita::OneWireMakita(uint8_t pin) : _pin((gpio_num_t)pin) {
+    pinMode(_pin, INPUT_PULLUP);
+    gpio_pullup_en(_pin);             // Asegura pull-up a nivel de hardware ESP32
+    pinMode(_pin, OUTPUT_OPEN_DRAIN); 
+    digitalWrite(_pin, HIGH); 
 }
 
-// Реализация сброса шины
+/**
+ * Implementación del reinicio (reset) del bus.
+ */
 bool OneWireMakita::reset(void) {
-    digitalWrite(_pin, HIGH);
-    pinMode(_pin, INPUT); // Временно переключаем на вход, чтобы проверить, не занята ли шина
-    uint8_t retries = 125;
-    do {
-        if (--retries == 0) return false;
-        delayMicroseconds(2);
-    } while (digitalRead(_pin) == LOW);
-
-    pinMode(_pin, OUTPUT_OPEN_DRAIN); // Возвращаем в рабочий режим
+    // 1. Verificación de bus en reposo (debe estar ALTO por el pull-up)
+    pinMode(_pin, INPUT_PULLUP);
+    if (digitalRead(_pin) == LOW) {
+        // El bus está en corto a tierra o el pin está flotando sin pull-up efectivo
+        return false; 
+    }
+    
+    pinMode(_pin, OUTPUT_OPEN_DRAIN);
     
     portENTER_CRITICAL(&oneWireMux);
-    digitalWrite(_pin, LOW); // Отправляем импульс сброса
+    digitalWrite(_pin, LOW); 
     portEXIT_CRITICAL(&oneWireMux);
 
-    delayMicroseconds(750); // Длительность импульса сброса
+    delayMicroseconds(TIME_RESET_PULSE); 
 
     portENTER_CRITICAL(&oneWireMux);
-    digitalWrite(_pin, HIGH); // Отпускаем шину
-    delayMicroseconds(70);    // Ждем, пока BMS ответит
-    uint8_t r = !digitalRead(_pin); // Читаем импульс присутствия (линия должна быть притянута к земле)
+    digitalWrite(_pin, HIGH);           // Soltamos el bus
+    delayMicroseconds(TIME_RESET_WAIT);  
+    bool presence = !digitalRead(_pin);  // Leemos el pulso de presencia
     portEXIT_CRITICAL(&oneWireMux);
 
-    delayMicroseconds(410); // Оставшееся время слота
-    return r;
+    delayMicroseconds(TIME_RESET_SLOT); 
+    
+    // 2. Verificación de recuperación: El bus DEBE volver a ALTO.
+    // Si sigue en BAJO después del slot, es un falso positivo por pin flotante.
+    if (digitalRead(_pin) == LOW) {
+        presence = false; 
+    }
+
+    return presence;
 }
 
-// Реализация записи байта (побитово)
+/**
+ * Envía un byte completo manejando los tiempos críticos de cada bit.
+ */
 void OneWireMakita::write(uint8_t v) {
     for (uint8_t bitMask = 0x01; bitMask; bitMask <<= 1) {
-        portENTER_CRITICAL(&oneWireMux);
-        if ((bitMask & v)) { // Запись '1'
-            digitalWrite(_pin, LOW); delayMicroseconds(12);
+        if (bitMask & v) { // Escritura de un '1' lógico
+            portENTER_CRITICAL(&oneWireMux);
+            digitalWrite(_pin, LOW); 
+            delayMicroseconds(TIME_WRITE1_LOW); // Pulso corto
             digitalWrite(_pin, HIGH);
             portEXIT_CRITICAL(&oneWireMux);
-            delayMicroseconds(120);
-        } else { // Запись '0'
-            digitalWrite(_pin, LOW); delayMicroseconds(100);
+            delayMicroseconds(TIME_WRITE1_HIGH);
+        } else { // Escritura de un '0' lógico
+            portENTER_CRITICAL(&oneWireMux);
+            digitalWrite(_pin, LOW); 
+            delayMicroseconds(TIME_WRITE0_LOW); // Pulso largo
             digitalWrite(_pin, HIGH);
             portEXIT_CRITICAL(&oneWireMux);
-            delayMicroseconds(30);
+            delayMicroseconds(TIME_WRITE0_HIGH);
         }
     }
 }
 
-// Реализация чтения байта (побитово)
+/**
+ * Lee un byte completo del bus mediante muestreo rápido tras el pulso de inicio.
+ */
 uint8_t OneWireMakita::read() {
-    uint8_t r = 0;
+    uint8_t result = 0;
     for (uint8_t bitMask = 0x01; bitMask; bitMask <<= 1) {
         portENTER_CRITICAL(&oneWireMux);
-        digitalWrite(_pin, LOW); delayMicroseconds(10);
-        digitalWrite(_pin, HIGH); delayMicroseconds(10);
+        digitalWrite(_pin, LOW); 
+        delayMicroseconds(TIME_READ_PULSE); // Generamos el pulso de inicio de lectura
+        digitalWrite(_pin, HIGH); 
+        delayMicroseconds(TIME_READ_SAMPLE); // Esperamos a que el BMS fije el dato
         if (digitalRead(_pin)) {
-            r |= bitMask;
+            result |= bitMask; // El bus está en alto -> bit es '1'
         }
         portEXIT_CRITICAL(&oneWireMux);
-        delayMicroseconds(53);
+        delayMicroseconds(TIME_READ_SLOT); // Completamos el slot de tiempo del bit
     }
-    return r;
+    return result;
 }
