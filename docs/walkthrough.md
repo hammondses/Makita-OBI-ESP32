@@ -1,6 +1,8 @@
 # Resumen de Puesta en Marcha
 
-¡Objetivo conseguido! El ESP32 ya tiene el firmware y la web funcionando en su **Versión 1.0**.
+¡Objetivo conseguido! El ESP32 ya tiene el firmware y la web funcionando en su **Versión 1.1**.
+
+![Interfaz Principal](file:///d:/GITHUB/Makita-OBI-ESP32/docs/img/app_main.jpg)
 
 ## Logros
 
@@ -10,8 +12,18 @@
 - **Modo WiFi Station**: Conexión al router del taller y acceso simplificado vía **makita.local**.
 - **Gráficos de Historial**: Visualización en tiempo real de la evolución de las celdas.
 - **HUD Dinámico**: Indicador visual inteligente de salud del pack (Equilibrado/Crítico).
-- **Simulación Avanzada**: 4 escenarios reales para pruebas sin hardware (Saludable, Baja, Dañada, Bloqueada).
+- **OTA Rediseñado**: Nueva interfaz premium para la actualización de firmware con barra de progreso detallada.
 - **Sincronización GitHub**: Repositorio profesional con documentación completa y archivos optimizados.
+
+## Galería del Proyecto
+
+````carousel
+![Estado del Paquete y Celdas](file:///d:/GITHUB/Makita-OBI-ESP32/docs/img/app_details.jpg)
+<!-- slide -->
+![Gráfico de Historial en Tiempo Real](file:///d:/GITHUB/Makita-OBI-ESP32/docs/img/app_graph.jpg)
+<!-- slide -->
+![Configuración de Sistema y OTA](file:///d:/GITHUB/Makita-OBI-ESP32/docs/img/app_system.jpg)
+````
 
 ## Cómo usar las nuevas funciones
 
@@ -36,7 +48,7 @@ Usa el gráfico de historial para detectar celdas que caen de voltaje bajo carga
 
 ## Notas Técnicas Finales
 
-- **Versión**: 1.0
+- **Versión**: 1.1
 - **Pin Enable**: GPIO 5
 - **Pin OneWire**: GPIO 4
 - **Velocidad Serial**: 115200 baudios
