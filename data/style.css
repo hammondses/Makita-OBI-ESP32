@@ -302,6 +302,24 @@ input:checked+.slider:before {
     transform: none !important;
 }
 
+.btn-danger {
+    background: var(--error) !important;
+    color: white !important;
+}
+
+.btn-danger:hover {
+    background: #d32f2f !important;
+}
+
+.btn-success {
+    background: var(--success) !important;
+    color: white !important;
+}
+
+.btn-success:hover {
+    background: #388e3c !important;
+}
+
 .btn-hint {
     font-size: 11px;
     color: var(--text-secondary);
