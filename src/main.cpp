@@ -4,6 +4,7 @@
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <DNSServer.h>
+#include <ESPmDNS.h>
 #include <ArduinoJson.h>
 #include "FS.h"
 #include "LittleFS.h"
@@ -311,6 +312,10 @@ void setup() {
     dnsServer.start(53, "*", WiFi.softAPIP());
     server.addHandler(new CaptiveRequestHandler());
     
+    if (MDNS.begin("makita")) {
+        Serial.println("mDNS iniciado: http://makita.local");
+    }
+
     server.begin();
     Serial.println("Servidor HTTPS/WS listo.");
 }
