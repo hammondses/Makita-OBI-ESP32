@@ -265,6 +265,14 @@ function applyTranslations() {
   // Actualizamos la barra de estado completa (Simulación, Presencia, etc.)
   refreshStatus();
 
+  // Actualizamos etiquetas del gráfico si existe
+  if (historyChart) {
+    historyChart.data.datasets.forEach((ds, i) => {
+      ds.label = `${t('cell')} ${i + 1}`;
+    });
+    historyChart.update('none');
+  }
+
   // Re-renderizamos los datos dinámicos si existen para aplicar el nuevo idioma
   if (lastData) {
     renderStaticTable(lastData);
