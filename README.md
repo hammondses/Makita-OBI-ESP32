@@ -42,9 +42,13 @@ Herramienta avanzada de diagnóstico para baterías Makita LXT (18V) basada en E
 3. Ejecuta **Upload** (Firmware).
 4. Ejecuta **Upload Filesystem Image** (Interfaz Web).
 
-## 📜 Créditos y Referencias
+## ⚖️ Licencia y Uso
 
-Este proyecto es una evolución mejorada y con interfaz web avanzada basada en el trabajo original de [Belik1982/esp32-makita-bms-reader](https://github.com/Belik1982/esp32-makita-bms-reader).
+Este proyecto ha sido evolucionado por **Urtzi (urtziDV)** basándose en el trabajo original de **Belik1982**.
+
+- **Licencia**: [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.es) (Atribución-NoComercial-CompartirIgual).
+- **Uso Comercial**: Queda estrictamente prohibida la venta de este software o de dispositivos que lo incluyan sin autorización expresa.
+- **Créditos**: Se debe mantener siempre la referencia a los autores originales.
 
 ---
-*Desarrollado con ❤️ para la comunidad de herramientas eléctricas.*
+*Desarrollado con ❤️ por Urtzi para la comunidad de herramientas eléctricas.*

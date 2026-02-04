@@ -1,21 +1,56 @@
-MIT License
+# Licencia / License
 
-Copyright (c) [2025] [Belik1982]
+## Español
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Este proyecto está bajo la licencia **Creative Commons Atribución-NoComercial-CompartirIgual 4.0 Internacional (CC BY-NC-SA 4.0)**.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Usted es libre de:
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+- **Compartir**: copiar y redistribuir el material en cualquier medio o formato.
+- **Adaptar**: remezclar, transformar y construir a partir del material.
+
+Bajo los siguientes términos:
+
+- **Atribución**: Debe otorgar el crédito correspondiente, proporcionar un enlace a la licencia e indicar si se realizaron cambios.
+- **No Comercial**: No puede utilizar el material con fines comerciales.
+- **Compartir Igual**: Si remezcla, transforma o crea a partir del material, debe distribuir sus contribuciones bajo la misma licencia que el original.
+
+---
+
+## English
+
+Este proyecto está bajo la licencia **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)**.
+
+You are free to:
+
+- **Share**: copy and redistribute the material in any medium or format.
+- **Adapt**: remix, transform, and build upon the material.
+
+Under the following terms:
+
+- **Attribution**: You must give appropriate credit, provide a link to the license, and indicate if changes were made.
+- **NonCommercial**: You may not use the material for commercial purposes.
+- **ShareAlike**: If you remix, transform, or build upon the material, you must distribute your contributions under the same license as the original.
+
+---
+
+## 📜 Créditos de Autoría / Attribution Credits
+
+### Autor Original (Base Firmware)
+
+**Copyright (c) 2025 Belik1982**
+
+El código base de este proyecto fue originalmente publicado bajo licencia MIT. Se incluye el aviso original por cumplimiento legal:
+*(The base code of this project was originally published under the MIT license. Original notice included below for legal compliance)*
+
+> This software is provided "as is", without warranty of any kind... (Original MIT License preserved in Git history and source headers).
+
+### Evolución y Versión Premium (Interface Web, HUD, OTA, mDNS)
+
+**Copyright (c) 2026 Urtzi (urtziDV)**
+
+Todas las mejoras, el rediseño de la interfaz web, la implementación de gráficos, el HUD dinámico, las traducciones y la optimización para mDNS son autoría de Urtzi.
+
+---
+
+[Ver Licencia Completa / View Full License Legal Code](https://github.com/urtziDV/Makita-OBI-ESP32/blob/main/LICENSE)
