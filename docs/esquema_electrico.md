@@ -49,14 +49,14 @@ graph TD
 
 ## Componentes Necesarios (BOM)
 
-1. **Microcontrolador**: ESP32 DevKit V1 (30 o 38 pines).
+1. **Microcontrolador**: ESP32 DevKit V1 o ESP32 Mini.
 2. **Resistencias**:
     - 1x 4.7kΩ (Pull-up datos).
     - 1x 1kΩ (Base transistor).
 3. **Semiconductor**:
-    - 1x Transistor NPN (BC547 o similar) o MOSFET canal N (2N7000) para el circuito de habilitación.
-4. **Conector**: Adaptador impreso en 3D o terminales de pala para encajar en el puerto de la batería Makita.
-5. **Cableado**: Cables macho-hembra o placa de prototipos (Breadboard/Stripboard).
+    - 1x Transistor NPN (BC547) o MOSFET canal N (2N7000) para habilitación.
+4. **Conector**: Adaptador impreso en 3D o terminales de pala.
+5. **Alimentación**: USB o Buck Converter 5V desde la batería.
 
 > [!IMPORTANT]
-> Asegúrate de que la masa (GND) del ESP32 esté unida al terminal negativo de la batería, de lo contrario la comunicación OneWire no funcionará.
+> Asegúrate de que la masa (GND) del ESP32 esté unida al terminal negativo de la batería.

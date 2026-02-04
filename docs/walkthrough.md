@@ -1,43 +1,45 @@
 # Resumen de Puesta en Marcha
 
-¡Objetivo conseguido! El ESP32 ya tiene el firmware y la web funcionando.
+¡Objetivo conseguido! El ESP32 ya tiene el firmware y la web funcionando en su **Versión 1.0**.
 
 ## Logros
 
-- **Proyecto Base**: Refactorización completa del lector de BMS Makita para ESP32, basado en el proyecto original de [Belik1982](https://github.com/Belik1982/esp32-makita-bms-reader).
-- **Compilación Corregida**: Se solucionaron los errores de `Serial` y de enlazador (`undefined reference`) en la clase `MakitaBMS`.
-- **Carga Exitosa**: Se superó el error `PermissionError(13)` del chip CH340 ajustando velocidades y refrescando los drivers de Windows.
-- **Web Operativa**: Archivos LittleFS cargados con nuevas funciones.
-- **Modo WiFi Station**: El ESP32 ya puede conectarse a un router externo (Configurable desde la web).
-- **Gráficos**: Visualización en tiempo real de la evolución de las celdas.
-- **Simulación Avanzada**: Ahora el modo simulación incluye 4 estados reales (Saludable, Baja, Dañada y Bloqueada) que rotan al pulsar "Leer Info".
-- **HUD Dinámico**: Nuevo indicador visual en la cabecera que muestra el estado de salud del pack (Equilibrado, Desviado, Crítico) con animaciones.
-- **Acceso mDNS**: Ya no necesitas recordar la IP. Entra directamente por **<http://makita.local>**.
-- **Sincronización GitHub**: Proyecto configurado con `.gitignore`, `README.md` y subido correctamente al repositorio remoto.
+- **Proyecto Base**: Refactorización completa del lector de BMS Makita para ESP32, basado en el proyecto original de Belik1982.
+- **Carga Exitosa**: Se superó el error de drivers CH340 y se optimizó la velocidad de carga.
+- **Web Operativa**: Interfaz moderna con Modo Oscuro, Multi-idioma (ES/EN) y Mobile Friendly.
+- **Modo WiFi Station**: Conexión al router del taller y acceso simplificado vía **makita.local**.
+- **Gráficos de Historial**: Visualización en tiempo real de la evolución de las celdas.
+- **HUD Dinámico**: Indicador visual inteligente de salud del pack (Equilibrado/Crítico).
+- **Simulación Avanzada**: 4 escenarios reales para pruebas sin hardware (Saludable, Baja, Dañada, Bloqueada).
+- **Sincronización GitHub**: Repositorio profesional con documentación completa y archivos optimizados.
 
 ## Cómo usar las nuevas funciones
 
-### 1. Cambio físico: Ahora el cable que controla el encendido de la batería debe ir conectado al **Pin 5** (Compatible con ESP32 Mini)
+### 1. Cambio físico (Crítico)
 
-### 2. Conectar al WiFi del Taller
+El cable que controla el encendido de la batería debe ir conectado al **Pin 5** (GPIO 5). Esto asegura compatibilidad con placas ESP32 Mini.
 
-- Ve al icono de engranaje (⚙️) en la parte superior derecha.
-- Introduce el nombre de tu red y la contraseña en la nueva sección WiFi.
-- Pulsa "Conectar al WiFi".
-- El dispositivo se reiniciará. Seguirá emitiendo la red `Makita_OBI_ESP32` pero también estará conectado a tu router.
+### 2. Acceso mDNS
 
-### 3. Ver Gráficos de Historial
+Ya no necesitas buscar la IP. Simplemente conéctate al WiFi y entra en:
+**`http://makita.local`**
 
-- Al activar la **Real-time Updates**, verás un gráfico debajo de las celdas que dibuja la tendencia de cada una. Ideal para diagnosticar baterías que "se rinden" bajo carga.
+### 3. Diagnóstico de Celdas
+
+Usa el gráfico de historial para detectar celdas que caen de voltaje bajo carga. Si el **HUD Dinámico** se pone en rojo, el pack necesita balanceo o reparación.
 
 ## Cómo usar la herramienta
 
 1. **Acceso**: Conéctate al WiFi `Makita_OBI_ESP32`.
-2. **Navegador**: Si no salta el portal automático, entra en `http://192.168.4.1`.
-3. **Lectura**: Conecta una batería Makita al pin ONEWIRE (GPIO 4) y alimenta el BMS. La web empezará a mostrar los voltajes de las celdas, ciclos de carga y estado de bloqueo en tiempo real.
+2. **Navegador**: Entra en `http://makita.local`.
+3. **Lectura**: Conecta una batería Makita y pulsa "Leer Info".
 
 ## Notas Técnicas Finales
 
-- El puerto de carga configurado es el **COM3** (automático).
-- La velocidad de carga se ha dejado en **115200** para mantener la estabilidad con el chip CH340.
-- La configuración de idioma y tema se guarda permanentemente en la memoria Flash del ESP32.
+- **Versión**: 1.0
+- **Pin Enable**: GPIO 5
+- **Pin OneWire**: GPIO 4
+- **Velocidad Serial**: 115200 baudios
+
+---
+Generado por Makita OBI ESP32 • Final Build
