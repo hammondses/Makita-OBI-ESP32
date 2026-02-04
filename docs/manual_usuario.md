@@ -48,4 +48,4 @@ Para que el dispositivo se conecte a tu red WiFi habitual:
 | Voltajes en 0.00V | Batería dormida. | Pulsa "Leer Info" para despertar el BMS. |
 
 ---
-Generado por Makita OBI ESP32 • Versión 1.0
+Generado por Makita OBI ESP32 • Versión 1.1

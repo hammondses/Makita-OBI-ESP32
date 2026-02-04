@@ -16,7 +16,7 @@ Herramienta avanzada de diagnóstico para baterías Makita LXT (18V) basada en E
 
 | Vista Principal | Salud y Celdas | Gráficos e Historial |
 | :---: | :---: | :---: |
-| ![Main](docs/img/app_main.jpg) | ![Details](docs/img/app_details.jpg) | ![Graph](docs/img/app_graph.jpg) |
+| ![Main](docs/img/Salud_Balanceo) | ![Details](docs/img/Estado_Bateria) | ![Graph](docs/img/Grafico_Historial) |
 
 > [!TIP]
 > Accede a la configuración avanzada y actualización OTA desde el icono de engranaje ⚙️.

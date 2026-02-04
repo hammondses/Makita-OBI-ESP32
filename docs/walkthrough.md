@@ -2,7 +2,7 @@
 
 ¡Objetivo conseguido! El ESP32 ya tiene el firmware y la web funcionando en su **Versión 1.1**.
 
-![Interfaz Principal](img/app_main.jpg)
+![Interfaz Principal](img/Salud_Balanceo)
 
 ## Logros
 
@@ -18,11 +18,11 @@
 ## Galería del Proyecto
 
 ````carousel
-![Estado del Paquete y Celdas](img/app_details.jpg)
+![Estado del Paquete y Celdas](img/Estado_Bateria)
 <!-- slide -->
-![Gráfico de Historial en Tiempo Real](img/app_graph.jpg)
+![Gráfico de Historial en Tiempo Real](img/Grafico_Historial)
 <!-- slide -->
-![Configuración de Sistema y OTA](img/app_system.jpg)
+![Configuración de Sistema y OTA](img/Firmware_OTA_WiFi)
 ````
 
 ## Cómo usar las nuevas funciones
