@@ -19,7 +19,7 @@ const TRANSLATIONS = {
     sectionTitle: "Operaciones",
     section_overview: "Estado del Paquete",
     rawTitle: "Consola de Sistema",
-    footerText: "Versión 2.0 Pro • ESP32 Control",
+    footerText: "Versión 2.0 • ESP32 Control",
     btn_read: "Leer Información",
     btn_dynamic: "Leer Voltajes",
     btn_clear_err: "Resetear Errores",
@@ -90,7 +90,7 @@ const TRANSLATIONS = {
     sectionTitle: "Operations",
     section_overview: "Pack Overview",
     rawTitle: "System Console",
-    footerText: "Version 2.0 Pro • ESP32 Control",
+    footerText: "Version 2.0 • ESP32 Control",
     btn_read: "Read Info",
     btn_dynamic: "Read Voltages",
     btn_clear_err: "Reset Errors",
@@ -126,7 +126,7 @@ const TRANSLATIONS = {
     lbl_temp: "Temperatures",
     lbl_fatigue: "Chemical Fatigue",
     lbl_imbalance: "Cell Imbalance (HUD)",
-    lbl_report: "Export Pro Report",
+    lbl_report: "Export Report",
     health_good: "Excellent",
     health_fair: "Fair",
     health_poor: "Degraded",
@@ -673,7 +673,7 @@ function generateReport() {
   report += `ESTADO DE SALUD (SOH): ${el('sohRing').textContent}\n`;
   report += `TEMPERATURAS: ${el('tempValues').textContent}\n`;
   report += `==========================================\n`;
-  report += `Generado por Makita OBI ESP32 Pro\n`;
+  report += `Generado por Makita OBI ESP32\n`;
 
   const blob = new Blob([report], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);

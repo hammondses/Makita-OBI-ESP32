@@ -247,7 +247,7 @@ void loadConfig(String& lang, String& theme, String& wifi_ssid, String& wifi_pas
 
 void setup() {
     Serial.begin(115200);
-    Serial.println("\nIniciando Makita BMS Tool Pro...");
+    Serial.println("\nIniciando Makita BMS Tool...");
     
     // Inicialización del sistema de archivos LittleFS
     if(!LittleFS.begin(true)){ 
@@ -312,7 +312,7 @@ void setup() {
     server.addHandler(new CaptiveRequestHandler());
     
     server.begin();
-    Serial.println("Servidor HTTPS/WS Pro listo.");
+    Serial.println("Servidor HTTPS/WS listo.");
 }
 
 void loop() {

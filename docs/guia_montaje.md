@@ -1,6 +1,6 @@
 # Guía de Montaje - Fabricación del Dispositivo
 
-Sigue estos pasos para construir tu propia herramienta de diagnóstico Makita OBI ESP32 Pro.
+Sigue estos pasos para construir tu propia herramienta de diagnóstico Makita OBI ESP32.
 
 ## Fase 1: Preparación del Hardware
 

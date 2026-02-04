@@ -1,4 +1,4 @@
-# Reporte de Pines (Pinout) - Makita OBI ESP32 Pro
+# Reporte de Pines (Pinout) - Makita OBI ESP32
 
 Este reporte detalla la función de cada pin utilizado en el ESP32 para asegurar el correcto funcionamiento del sistema y evitar conflictos de hardware.
 

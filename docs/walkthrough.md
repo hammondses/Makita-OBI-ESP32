@@ -8,7 +8,7 @@
 - **Carga Exitosa**: Se superó el error `PermissionError(13)` del chip CH340 ajustando velocidades y refrescando los drivers de Windows.
 - **Web Operativa**: Archivos LittleFS cargados con nuevas funciones.
 - **Modo WiFi Station**: El ESP32 ya puede conectarse a un router externo (Configurable desde la web).
-- **Gráficos Pro**: Visualización en tiempo real de la evolución de las celdas.
+- **Gráficos**: Visualización en tiempo real de la evolución de las celdas.
 
 ## Cómo usar las nuevas funciones
 

@@ -1,4 +1,4 @@
-# Esquema Eléctrico - Makita OBI ESP32 Pro
+# Esquema Eléctrico - Makita OBI ESP32
 
 Este documento describe las conexiones necesarias para construir el hardware de diagnóstico.
 

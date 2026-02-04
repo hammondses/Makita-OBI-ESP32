@@ -1,8 +1,8 @@
-# Makita OBI ESP32 Pro 🔋
+# Makita OBI ESP32 🔋
 
 Herramienta avanzada de diagnóstico para baterías Makita LXT (18V) basada en ESP32.
 
-## ✨ Características de la Versión 2.0 Pro
+## ✨ Características de la Versión 2.0
 
 - **Triple Verificación de Presencia**: Eliminación de falsos positivos (baterías fantasma).
 - **WiFi Dual**: Acceso simultáneo vía AP (Directo) o Station (Red de tu taller).

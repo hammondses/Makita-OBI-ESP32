@@ -1,6 +1,6 @@
 # Manual de Usuario - Operación del Sistema
 
-Bienvenido a la herramienta de diagnóstico **Makita OBI ESP32 Pro**. Este manual explica cómo sacar el máximo provecho a la interfaz.
+Bienvenido a la herramienta de diagnóstico **Makita OBI ESP32**. Este manual explica cómo sacar el máximo provecho a la interfaz.
 
 ## 1. Conexión Inicial
 
@@ -41,7 +41,10 @@ Para que el dispositivo se conecte a tu red WiFi habitual:
 
 | Problema | Causa Probable | Solución |
 | :--- | :--- | :--- |
-| No aparece el WiFi | Pin 1 en corto o conflicto Serial. | Asegúrate de haber movido el ENABLE al Pin 13. |
+| No aparece el WiFi | Pin 1 en corto o conflicto Serial. | Asegúrate de haber movido el ENABLE al Pin 5. |
 | Sale "(Bus vacío)" | Mala conexión física. | Revisa que el cable de datos toque bien el pin central. |
 | La web no carga | Falta cargar el Filesystem. | Ejecuta "Upload Filesystem Image" desde PlatformIO. |
 | Voltajes en 0.00V | Batería dormida. | Pulsa "Leer Info" para enviar el pulso de despertar. |
+
+---
+Generado por Makita OBI ESP32
