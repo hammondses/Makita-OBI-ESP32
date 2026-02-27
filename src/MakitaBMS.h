@@ -105,12 +105,17 @@ private:
     LogLevel _logLevel = LOG_LEVEL_DEBUG;
     
     // Funciones internas de comunicación por el bus
-    void cmd_and_read_33(const byte* cmd, uint8_t cmd_len, byte* rsp, uint8_t rsp_len);
-    void cmd_and_read_cc(const byte* cmd, uint8_t cmd_len, byte* rsp, uint8_t rsp_len);
-    
+    bool cmd_and_read_33(const byte* cmd, uint8_t cmd_len, byte* rsp, uint8_t rsp_len);
+    bool cmd_and_read_cc(const byte* cmd, uint8_t cmd_len, byte* rsp, uint8_t rsp_len);
+
+    // Power cycling and retry logic for reliable BMS wake-up
+    void powerCycle();
+    bool resetWithRetry(uint8_t max_attempts = 3);
+    static bool isResponseGarbage(const byte* data, uint8_t len);
+
     // Utilidad para corregir el orden de los bits/nibbles en algunos campos
     byte nibble_swap(byte b) { return (b >> 4) | (b << 4); }
-    
+
     // Métodos específicos de identificación por tipo de hardware
     String getModel();
     String getF0513Model();

@@ -19,8 +19,8 @@ String statusToString(BMSStatus status);
 // --- Configuraciones y objetos globales ---
 // Pin GPIO para la comunicación de un solo hilo (OneWire)
 #define ONEWIRE_PIN 4
-// Pin GPIO para controlar el transistor NPN que alimenta el BMS (Cambiado al 5 para compatibilidad mini)
-#define ENABLE_PIN  5
+// Pin GPIO para la señal de habilitación del BMS (directo, sin transistor NPN)
+#define ENABLE_PIN  3
 
 // SSID del Punto de Acceso WiFi que creará el ESP32
 const char* ssid = "Makita_OBI_ESP32";
@@ -40,15 +40,25 @@ MakitaBMS bms(ONEWIRE_PIN, ENABLE_PIN);
 // Caché global de datos para mantener la información estática al solicitar actualizaciones dinámicas
 static BatteryData cached_data;
 // Configuración persistente (WiFi Station)
-static String current_lang = "es";
+static String current_lang = "en";
 static String current_theme = "light";
 static String current_wifi_ssid = "";
 static String current_wifi_pass = "";
 
-// Variables para control de intervalos
-unsigned long lastPresenceCheck = 0;
+// Auto-detection timing and state
+const unsigned long DETECTION_INTERVAL = 5000;      // 5s normal polling
+const unsigned long BACKOFF_INTERVAL = 15000;        // 15s after repeated failures
+const unsigned long DYNAMIC_READ_INTERVAL = 10000;   // 10s between dynamic reads
+const uint8_t MAX_DETECTION_ATTEMPTS = 3;            // failures before backing off
+const uint8_t MAX_DYNAMIC_FAILS = 2;                 // consecutive fails before disconnect
+
+unsigned long lastDetectionAttempt = 0;
 bool lastPresenceState = false;
-const unsigned long PRESENCE_INTERVAL = 4000; // 4 segundos entre chequeos
+bool autoReadIdentified = false;
+unsigned long lastDynamicRead = 0;
+uint8_t detectionFailCount = 0;          // consecutive static read failures
+uint8_t dynamicFailCount = 0;            // consecutive dynamic read failures
+SupportedFeatures cached_features;
 
 // --- Funciones de Comunicación ---
 
@@ -131,10 +141,14 @@ void logToClients(const String& message, LogLevel level) {
  */
 void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
     if (type == WS_EVT_CONNECT) {
-        Serial.printf("Cliente WS #%u conectado\n", client->id());
-        sendPresence(bms.isPresent());
+        Serial.printf("WS client #%u connected\n", client->id());
+        sendPresence(lastPresenceState);
+        // If battery already identified, send cached data to new client
+        if (autoReadIdentified) {
+            sendJsonResponse("static_data", cached_data, &cached_features);
+        }
     } else if (type == WS_EVT_DISCONNECT) {
-        Serial.printf("Cliente WS #%u desconectado\n", client->id());
+        Serial.printf("WS client #%u disconnected\n", client->id());
     } else if (type == WS_EVT_DATA) {
         DynamicJsonDocument doc(256);
         if (deserializeJson(doc, (char*)data) != DeserializationError::Ok) return;
@@ -150,39 +164,61 @@ void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsE
             BMSStatus status = bms.readStaticData(fresh_data, fresh_features);
             if (status == BMSStatus::OK) {
                 cached_data = fresh_data;
-                sendJsonResponse("static_data", cached_data, &fresh_features);
+                cached_features = fresh_features;
+                autoReadIdentified = true;
+                lastPresenceState = true;
+                detectionFailCount = 0;
+                dynamicFailCount = 0;
+                lastDynamicRead = millis();
+                sendJsonResponse("static_data", cached_data, &cached_features);
                 sendPresence(true);
             } else {
+                // Reset auto-detection state so loop re-detects
+                autoReadIdentified = false;
+                lastPresenceState = false;
+                detectionFailCount = 0;
+                dynamicFailCount = 0;
+                sendPresence(false);
                 sendFeedback("error", statusToString(status));
             }
         } else if (command == "read_dynamic") {
             // Lectura de voltajes y temperaturas actuales
             BMSStatus status = bms.readDynamicData(cached_data);
             if (status == BMSStatus::OK) {
+                dynamicFailCount = 0;
                 sendJsonResponse("dynamic_data", cached_data, nullptr);
             } else {
-                sendFeedback("error", statusToString(status));
+                dynamicFailCount++;
+                if (dynamicFailCount >= MAX_DYNAMIC_FAILS && autoReadIdentified) {
+                    autoReadIdentified = false;
+                    lastPresenceState = false;
+                    detectionFailCount = 0;
+                    dynamicFailCount = 0;
+                    sendPresence(false);
+                    logToClients("Battery disconnected.", LOG_LEVEL_INFO);
+                } else {
+                    sendFeedback("error", statusToString(status));
+                }
             }
         } else if (command == "led_on") {
             // Enciende los LEDs de la batería (solo modelos STANDARD)
             BMSStatus status = bms.ledTest(true);
-            if (status == BMSStatus::OK) sendFeedback("success", "Comando LED ON enviado.");
+            if (status == BMSStatus::OK) sendFeedback("success", "LED ON sent.");
             else sendFeedback("error", statusToString(status));
         } else if (command == "led_off") {
-            // Apaga los LEDs de la batería
             BMSStatus status = bms.ledTest(false);
-            if (status == BMSStatus::OK) sendFeedback("success", "Comando LED OFF enviado.");
+            if (status == BMSStatus::OK) sendFeedback("success", "LED OFF sent.");
             else sendFeedback("error", statusToString(status));
         } else if (command == "clear_errors") {
             // Intenta resetear contadores de error del controlador
             BMSStatus status = bms.clearErrors();
-            if (status == BMSStatus::OK) sendFeedback("success", "Comando Limpiar Errores enviado.");
+            if (status == BMSStatus::OK) sendFeedback("success", "Clear errors sent.");
             else sendFeedback("error", statusToString(status));
         } else if (command == "set_logging") {
             // Activa o desactiva la depuración detallada
             bool enabled = doc["enabled"];
             bms.setLogLevel(enabled ? LOG_LEVEL_DEBUG : LOG_LEVEL_INFO);
-            logToClients(String("Nivel de log: ") + (enabled ? "DEBUG" : "INFO"), LOG_LEVEL_INFO);
+            logToClients(String("Log level: ") + (enabled ? "DEBUG" : "INFO"), LOG_LEVEL_INFO);
         } else if (command == "get_config") {
             DynamicJsonDocument configDoc(256);
             configDoc["type"] = "config";
@@ -195,12 +231,12 @@ void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsE
             current_lang = doc["lang"].as<String>();
             current_theme = doc["theme"].as<String>();
             saveConfig(current_lang, current_theme, current_wifi_ssid, current_wifi_pass);
-            logToClients(current_lang == "es" ? "Configuración guardada." : "Settings saved.", LOG_LEVEL_INFO);
+            logToClients("Settings saved.", LOG_LEVEL_INFO);
         } else if (command == "set_wifi") {
             current_wifi_ssid = doc["ssid"].as<String>();
             current_wifi_pass = doc["pass"].as<String>();
             saveConfig(current_lang, current_theme, current_wifi_ssid, current_wifi_pass);
-            logToClients(current_lang == "es" ? "WiFi configurado. Reiniciando..." : "WiFi configured. Restarting...", LOG_LEVEL_INFO);
+            logToClients("WiFi configured. Restarting...", LOG_LEVEL_INFO);
             delay(1000);
             ESP.restart();
         }
@@ -239,7 +275,7 @@ void loadConfig(String& lang, String& theme, String& wifi_ssid, String& wifi_pas
     if (!file) return;
     DynamicJsonDocument doc(512);
     deserializeJson(doc, file);
-    lang = doc["lang"] | "es";
+    lang = doc["lang"] | "en";
     theme = doc["theme"] | "light";
     wifi_ssid = doc["wifi_ssid"] | "";
     wifi_pass = doc["wifi_pass"] | "";
@@ -248,29 +284,46 @@ void loadConfig(String& lang, String& theme, String& wifi_ssid, String& wifi_pas
 
 void setup() {
     Serial.begin(115200);
-    Serial.println("\nIniciando Makita BMS Tool...");
+    Serial.println("\nStarting Makita BMS Tool...");
     
     // Inicialización del sistema de archivos LittleFS
     if(!LittleFS.begin(true)){ 
-        Serial.println("Error al montar LittleFS");
+        Serial.println("LittleFS mount failed");
         return; 
     }
-    Serial.println("LittleFS montado correctamente.");
+    Serial.println("LittleFS mounted OK.");
     
     // Cargar configuración guardada
     loadConfig(current_lang, current_theme, current_wifi_ssid, current_wifi_pass);
-    Serial.printf("Configuración cargada: Lang=%s, Theme=%s\n", current_lang.c_str(), current_theme.c_str());
+    Serial.printf("Config loaded: Lang=%s, Theme=%s\n", current_lang.c_str(), current_theme.c_str());
 
     bms.setLogCallback(logToClients);
+
+    // Pin diagnostics
+    Serial.printf("ONEWIRE_PIN=%d, ENABLE_PIN=%d\n", ONEWIRE_PIN, ENABLE_PIN);
+    pinMode(ENABLE_PIN, OUTPUT);
+    digitalWrite(ENABLE_PIN, HIGH);
+    delay(500);
+    Serial.printf("Enable=HIGH -> OneWire reads: %d\n", digitalRead(ONEWIRE_PIN));
+    bool resetOk = bms.isPresent();
+    Serial.printf("Presence check: %s\n", resetOk ? "DETECTED" : "EMPTY");
+    digitalWrite(ENABLE_PIN, LOW);
+    delay(100);
+    Serial.printf("Enable=LOW  -> OneWire reads: %d\n", digitalRead(ONEWIRE_PIN));
+    digitalWrite(ENABLE_PIN, HIGH);
+    delay(500);
+    Serial.printf("Enable=HIGH -> OneWire reads: %d\n", digitalRead(ONEWIRE_PIN));
+    resetOk = bms.isPresent();
+    Serial.printf("Presence check: %s\n", resetOk ? "DETECTED" : "EMPTY");
 
     // Modo WiFi Dual: SoftAP + Station
     WiFi.mode(WIFI_AP_STA);
     WiFi.softAP(ssid_ap);
-    Serial.print("Punto de Acceso iniciado: ");
+    Serial.print("AP started: ");
     Serial.println(WiFi.softAPIP());
 
     if (current_wifi_ssid.length() > 0) {
-        Serial.printf("Intentando conectar a WiFi: %s\n", current_wifi_ssid.c_str());
+        Serial.printf("Connecting to WiFi: %s\n", current_wifi_ssid.c_str());
         WiFi.begin(current_wifi_ssid.c_str(), current_wifi_pass.c_str());
         // No bloqueamos el setup; la conexión se gestionará de fondo
     }
@@ -287,7 +340,7 @@ void setup() {
         if(!updateFailed) ESP.restart();
     }, [&](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
         if (!index) {
-            Serial.printf("Actualización iniciada: %s\n", filename.c_str());
+            Serial.printf("Update started: %s\n", filename.c_str());
             if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
                 Update.printError(Serial);
             }
@@ -299,7 +352,7 @@ void setup() {
         }
         if (final) {
             if (Update.end(true)) {
-                Serial.printf("Actualización completada: %u bytes\n", index + len);
+                Serial.printf("Update complete: %u bytes\n", index + len);
             } else {
                 Update.printError(Serial);
             }
@@ -317,28 +370,75 @@ void setup() {
     }
 
     server.begin();
-    Serial.println("Servidor HTTPS/WS listo.");
+    Serial.println("HTTP/WS server ready.");
 }
 
 void loop() {
-    // Procesamiento de peticiones DNS para el Portal Cautivo
     dnsServer.processNextRequest();
-
-    // Limpieza de clientes WebSocket inactivos
     ws.cleanupClients();
 
-    // Ticker de Presencia: Notifica cambios de estado automáticamente
     unsigned long now = millis();
-    if (now - lastPresenceCheck > PRESENCE_INTERVAL) {
-        lastPresenceCheck = now;
-        bool currentPresence = bms.isPresent();
-        if (currentPresence != lastPresenceState) {
-            lastPresenceState = currentPresence;
-            sendPresence(currentPresence);
-            
-            // Si la batería desaparece, informamos por el log
-            if (!currentPresence) {
-                logToClients("Batería desconectada.", LOG_LEVEL_INFO);
+
+    // --- Auto-detect battery ---
+    if (!autoReadIdentified) {
+        unsigned long interval = (detectionFailCount >= MAX_DETECTION_ATTEMPTS)
+                                 ? BACKOFF_INTERVAL : DETECTION_INTERVAL;
+
+        if (now - lastDetectionAttempt > interval) {
+            lastDetectionAttempt = now;
+
+            BatteryData fresh_data;
+            SupportedFeatures fresh_features;
+            BMSStatus status = bms.readStaticData(fresh_data, fresh_features);
+
+            if (status == BMSStatus::OK) {
+                cached_data = fresh_data;
+                cached_features = fresh_features;
+                autoReadIdentified = true;
+                lastPresenceState = true;
+                detectionFailCount = 0;
+                dynamicFailCount = 0;
+                sendPresence(true);
+                sendJsonResponse("static_data", cached_data, &cached_features);
+                logToClients("Battery detected: " + cached_data.model, LOG_LEVEL_INFO);
+
+                // Immediately read dynamic data too
+                status = bms.readDynamicData(cached_data);
+                if (status == BMSStatus::OK) {
+                    sendJsonResponse("dynamic_data", cached_data, nullptr);
+                }
+                lastDynamicRead = millis();
+            } else {
+                detectionFailCount++;
+                if (detectionFailCount == MAX_DETECTION_ATTEMPTS) {
+                    logToClients("No battery after " + String(MAX_DETECTION_ATTEMPTS) +
+                                 " attempts, backing off to " + String(BACKOFF_INTERVAL / 1000) + "s",
+                                 LOG_LEVEL_INFO);
+                }
+            }
+        }
+    }
+
+    // --- Auto-poll dynamic data while battery is identified ---
+    if (autoReadIdentified && (now - lastDynamicRead > DYNAMIC_READ_INTERVAL)) {
+        lastDynamicRead = now;
+        BMSStatus status = bms.readDynamicData(cached_data);
+
+        if (status == BMSStatus::OK) {
+            dynamicFailCount = 0;
+            sendJsonResponse("dynamic_data", cached_data, nullptr);
+        } else {
+            dynamicFailCount++;
+            Serial.printf("[DBG] Dynamic read fail %d/%d\n", dynamicFailCount, MAX_DYNAMIC_FAILS);
+
+            if (dynamicFailCount >= MAX_DYNAMIC_FAILS) {
+                // Battery truly gone
+                autoReadIdentified = false;
+                lastPresenceState = false;
+                detectionFailCount = 0;
+                dynamicFailCount = 0;
+                sendPresence(false);
+                logToClients("Battery disconnected.", LOG_LEVEL_INFO);
             }
         }
     }

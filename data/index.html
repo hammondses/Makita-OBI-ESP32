@@ -1,232 +1,201 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Makita OBI ESP32</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap"
-        rel="stylesheet">
+    <title>Makita BMS Tool</title>
     <link rel="stylesheet" href="./style.css">
     <script src="./chart.min.js"></script>
 </head>
 
 <body>
-
-    <header class="topbar glass">
-        <div class="header-left">
-            <span class="logo">🔋</span>
-            <div class="title-block">
-                <div class="title">Makita OBI ESP32</div>
-                <div class="subtitle" id="subtitle" data-i18n="subtitle">Diagnóstico de Batería</div>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="brand">
+                <span class="brand-icon">&#x26A1;</span>
+                <div class="brand-text">
+                    <span class="brand-name">Makita BMS</span>
+                    <span class="brand-sub">ESP32 Diagnostics</span>
+                </div>
             </div>
         </div>
 
-        <div class="header-right">
-            <div class="lang-block system-block">
-                <button id="btnSystem" class="lang">⚙️</button>
-            </div>
-            <div class="lang-block theme-block">
-                <button id="themeLight" class="lang">☀️</button>
-                <button id="themeDark" class="lang">🌙</button>
-            </div>
-            <div class="lang-block">
-                <button id="btnEN" class="lang">EN</button>
-                <button id="btnES" class="lang active">ES</button>
-            </div>
-        </div>
-    </header>
-
-    <main class="container">
-        <!-- Indicador de Estado Flotante -->
-        <div class="header-status glass" id="statusWidget">
-            <span id="statusText">Conectando...</span>
+        <div class="sidebar-status" id="statusWidget">
+            <span class="status-dot" id="statusDot"></span>
+            <span id="statusText">Connecting...</span>
         </div>
 
-        <div id="limitedSupportAlert" class="alert info glass hidden"></div>
-
-        <!-- Sección de Comandos -->
-        <section class="card glass">
-            <div class="card-header">
-                <h2 data-i18n="sectionTitle">Operaciones</h2>
+        <nav class="sidebar-nav">
+            <div class="nav-group">
+                <span class="nav-label" data-i18n="sectionTitle">Operations</span>
+                <button id="btnReadStatic" class="nav-btn primary" data-i18n="btn_read">Read Info</button>
+                <button id="btnReadDynamic" class="nav-btn" disabled data-i18n="btn_dynamic">Read Voltages</button>
             </div>
 
-            <div class="actions-grid">
-                <div class="switch-container">
-                    <span class="switch-label" id="lblAutoPoll" data-i18n="lbl_auto">Auto-lectura</span>
+            <div id="serviceActions" class="nav-group hidden">
+                <span class="nav-label">Service</span>
+                <button id="btnClearErrors" class="nav-btn danger" disabled data-i18n="btn_clear_err">Reset Errors</button>
+                <button id="btnLed" class="nav-btn success" disabled data-i18n="btn_led_test">Test LED</button>
+            </div>
+
+            <div class="nav-group">
+                <span class="nav-label" data-i18n="lbl_auto">Real-time Updates</span>
+                <div class="toggle-row">
+                    <span class="toggle-label" id="lblAutoPoll">Auto-poll</span>
                     <label class="switch" for="checkAuto">
                         <input type="checkbox" id="checkAuto" aria-labelledby="lblAutoPoll">
                         <span class="slider"></span>
                     </label>
                 </div>
+            </div>
+        </nav>
 
-                <div class="button-pair">
-                    <button id="btnReadStatic" class="big btn-data" data-i18n="btn_read">Leer Info</button>
-                    <button id="btnReadDynamic" class="big" disabled data-i18n="btn_dynamic">Leer Voltajes</button>
+        <div class="sidebar-footer">
+            <div class="toolbar">
+                <div class="btn-group">
+                    <button id="themeLight" class="tool-btn active">Light</button>
+                    <button id="themeDark" class="tool-btn">Dark</button>
                 </div>
+                <div class="btn-group">
+                    <button id="btnEN" class="tool-btn active">EN</button>
+                    <button id="btnES" class="tool-btn">ES</button>
+                </div>
+            </div>
+            <button id="btnSystem" class="nav-btn ghost">Settings &amp; OTA</button>
+            <div class="version" data-i18n="footerText">v1.2</div>
+        </div>
+    </aside>
 
-                <div id="serviceActions" class="service-actions-block hidden">
-                    <div class="button-pair">
-                        <button id="btnClearErrors" class="big btn-danger" disabled data-i18n="btn_clear_err">Resetear
-                            Errores</button>
-                        <button id="btnLed" class="big btn-success" disabled data-i18n="btn_led_test">Test LED</button>
+    <!-- Mobile top bar (shown only on small screens) -->
+    <header class="mobile-topbar">
+        <button class="hamburger" id="menuToggle">&#9776;</button>
+        <span class="mobile-title">Makita BMS</span>
+        <span class="mobile-status" id="mobileStatusDot"></span>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div id="limitedSupportAlert" class="alert-banner hidden"></div>
+
+        <!-- Dashboard Grid -->
+        <div class="dashboard hidden" id="overviewCard">
+            <!-- Row 1: Info + Cells -->
+            <section class="panel info-panel">
+                <div class="panel-header">
+                    <h2 data-i18n="section_overview">Pack Overview</h2>
+                    <div id="imbalanceBadge" class="badge-pill hidden"></div>
+                </div>
+                <div class="kv" id="data-table"></div>
+            </section>
+
+            <section class="panel cells-panel">
+                <div class="panel-header">
+                    <h2>Cells</h2>
+                </div>
+                <div class="battery-cells" id="cellsArea"></div>
+                <div class="pack-summary" id="packSummary"></div>
+            </section>
+
+            <!-- Row 2: SOH + Temps -->
+            <section class="panel diag-panel">
+                <div class="diag-grid">
+                    <div class="diag-card">
+                        <span class="diag-label" data-i18n="lbl_soh">SOH (Health)</span>
+                        <div id="sohRing" class="soh-ring">--%</div>
+                        <span id="sohLabel" class="diag-value">---</span>
                     </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Vista General de la Batería -->
-        <section class="card glass hidden" id="overviewCard">
-            <div class="card-header">
-                <h2 data-i18n="section_overview">Estado del Paquete</h2>
-                <div id="imbalanceBadge" class="imbalance-badge hidden"></div>
-            </div>
-
-            <!-- Tabla de Información -->
-            <div class="kv" id="data-table"></div>
-
-            <!-- Visualización de Celdas -->
-            <div class="battery-container">
-                <div class="battery-pack">
-                    <div class="battery-cells" id="cellsArea">
-                        <!-- Las celdas y números se inyectan aquí vía JS -->
-                    </div>
-                </div>
-            </div>
-
-            <div class="pack-summary" id="packSummary"></div>
-
-            <!-- Diagnóstico Avanzado -->
-            <div class="diag-grid">
-                <div class="diag-item">
-                    <span class="diag-label" data-i18n="lbl_soh">SOH (Salud)</span>
-                    <div id="sohRing" class="soh-ring">--%</div>
-                    <span id="sohLabel" class="diag-value">---</span>
-                </div>
-                <div class="diag-item">
-                    <span class="diag-label" data-i18n="lbl_temp">Temperatura</span>
-                    <div class="temp-gauges-container">
-                        <div class="temp-gauge">
-                            <div id="tempBar1" class="temp-bar"></div>
+                    <div class="diag-card">
+                        <span class="diag-label" data-i18n="lbl_temp">Temperature</span>
+                        <div class="temp-row">
+                            <div class="temp-gauge"><div id="tempBar1" class="temp-bar"></div></div>
+                            <div class="temp-gauge"><div id="tempBar2" class="temp-bar"></div></div>
                         </div>
-                        <div class="temp-gauge">
-                            <div id="tempBar2" class="temp-bar"></div>
-                        </div>
+                        <span id="tempValues" class="diag-value">--°C | --°C</span>
                     </div>
-                    <span id="tempValues" class="diag-value">--°C | --°C</span>
                 </div>
-            </div>
+            </section>
 
-            <!-- Modelo y Comparativa -->
-            <div id="modelSection" class="analytics-section hidden">
-                <span class="diag-label" data-i18n="lbl_model_compare">Comparativa de Modelo (Nominal)</span>
-                <div class="model-grid" id="modelComparison">
-                    <!-- Inyectado por JS -->
+            <!-- Row 3: Imbalance HUD -->
+            <section class="panel hud-panel">
+                <div class="panel-header">
+                    <h2 data-i18n="lbl_imbalance">Cell Imbalance (HUD)</h2>
                 </div>
-            </div>
+                <div id="imbalanceHUD" class="hud-container"></div>
+            </section>
 
-            <!-- Gráfico de Desbalanceo (HUD) -->
-            <div class="analytics-section">
-                <span class="diag-label" data-i18n="lbl_imbalance">Desbalanceo (HUD)</span>
-                <div id="imbalanceHUD" class="hud-container">
-                    <!-- Barras de desviación inyectadas por JS -->
+            <!-- Row 4: Chart (full width) -->
+            <section class="panel chart-panel">
+                <div class="panel-header">
+                    <h2 data-i18n="lbl_history">Voltage History</h2>
                 </div>
-            </div>
-
-            <!-- Gráfico de Historial de Voltajes -->
-            <div class="analytics-section">
-                <span class="diag-label" data-i18n="lbl_history">Gráfico de Historial (Tiempo Real)</span>
-                <div class="chart-container">
+                <div class="chart-wrap">
                     <canvas id="historyChart"></canvas>
                 </div>
-            </div>
+            </section>
 
-            <!-- Asistente de Balanceo -->
-            <div id="balanceSection" class="analytics-section hidden">
-                <span class="diag-label balance-warning-label" data-i18n="lbl_balance_title">⚠️ Asistente de Balanceo
-                    Manual</span>
-                <div class="balance-assistant" id="balanceAssistant">
-                    <!-- Instrucciones inyectadas por JS -->
+            <!-- Model Comparison -->
+            <section id="modelSection" class="panel model-panel hidden">
+                <div class="panel-header">
+                    <h2 data-i18n="lbl_model_compare">Model Comparison</h2>
                 </div>
-            </div>
+                <div class="model-grid" id="modelComparison"></div>
+            </section>
+
+            <!-- Balancing Assistant -->
+            <section id="balanceSection" class="panel balance-panel hidden">
+                <div class="panel-header">
+                    <h2 data-i18n="lbl_balance_title">Balancing Assistant</h2>
+                </div>
+                <div class="balance-assistant" id="balanceAssistant"></div>
+            </section>
 
             <div class="alerts" id="alertsArea"></div>
 
-            <div class="report-block">
-                <button id="btnExport" class="big pro-btn">
-                    <span class="btn-icon">📄</span> <span data-i18n="lbl_report">Generar informe</span>
+            <div class="export-row">
+                <button id="btnExport" class="nav-btn ghost export-btn">
+                    Export Report
                 </button>
             </div>
-        </section>
+        </div>
 
-        <!-- Sistema y Actualización (Fuera de la tarjeta de batería) -->
-        <section class="system-section hidden" id="systemSection">
-            <div class="card glass">
-                <div class="card-header">
-                    <h2 data-i18n="lbl_system_title">Sistema & FW Update</h2>
-                </div>
-                <div class="ota-modern-card">
-                    <div class="ota-status-header">
-                        <div class="ota-icon">📦</div>
-                        <div class="ota-info">
-                            <span class="ota-title" data-i18n="ota_title">Actualización de Firmware</span>
-                            <span class="ota-desc" data-i18n="ota_desc">Sube un archivo .bin para mantener tu
-                                dispositivo al día.</span>
-                        </div>
-                    </div>
-
-                    <div class="ota-action-area">
-                        <input type="file" id="otaFile" accept=".bin" class="hidden" title="Archivo de firmware">
-                        <button id="btnOta" class="ota-main-btn" data-i18n="btn_ota_select">
-                            Seleccionar Archivo
-                        </button>
-                    </div>
-
-                    <div id="otaProgress" class="ota-progress-modern hidden">
-                        <div class="ota-progress-labels">
-                            <span id="otaStatusMsg" data-i18n="ota_msg_uploading">Subiendo...</span>
+        <!-- System & OTA -->
+        <section class="panel system-panel hidden" id="systemSection">
+            <div class="panel-header"><h2 data-i18n="lbl_system_title">System &amp; FW Update</h2></div>
+            <div class="system-grid">
+                <div class="ota-block">
+                    <h3 data-i18n="ota_title">Firmware Update</h3>
+                    <p class="muted" data-i18n="ota_desc">Upload a .bin file to update.</p>
+                    <input type="file" id="otaFile" accept=".bin" class="hidden" title="Firmware file">
+                    <button id="btnOta" class="nav-btn primary" data-i18n="btn_ota_select">Select File</button>
+                    <div id="otaProgress" class="ota-progress hidden">
+                        <div class="progress-info">
+                            <span id="otaStatusMsg" data-i18n="ota_msg_uploading">Uploading...</span>
                             <span id="otaPercent">0%</span>
                         </div>
-                        <div class="ota-bar-bg">
-                            <div class="ota-bar-fill" id="otaBar"></div>
-                        </div>
+                        <div class="progress-bar"><div class="progress-fill" id="otaBar"></div></div>
                     </div>
                 </div>
-
-                <hr class="system-divider">
-
-                <div class="wifi-config-container">
-                    <h3 data-i18n="lbl_wifi_config">Configuración WiFi (Modo Estación)</h3>
-                    <div class="input-group">
-                        <input type="text" id="wifiSSID" placeholder="Nombre de red (SSID)"
-                            data-i18n-hold="lbl_wifi_ssid">
-                        <input type="password" id="wifiPass" placeholder="Contraseña" data-i18n-hold="lbl_wifi_pass">
-                    </div>
-                    <button id="btnSaveWifi" class="pro-btn blue-btn">
-                        <span class="btn-icon">🌐</span> <span data-i18n="btn_save_wifi">Conectar al WiFi</span>
-                    </button>
-                    <p class="hint" data-i18n="lbl_wifi_hint">El ESP32 se reiniciará para conectar. Mantendrá el AP
-                        Makita como respaldo.</p>
+                <div class="wifi-block">
+                    <h3 data-i18n="lbl_wifi_config">WiFi Station Mode</h3>
+                    <input type="text" id="wifiSSID" placeholder="SSID" data-i18n-hold="lbl_wifi_ssid">
+                    <input type="password" id="wifiPass" placeholder="Password" data-i18n-hold="lbl_wifi_pass">
+                    <button id="btnSaveWifi" class="nav-btn primary" data-i18n="btn_save_wifi">Connect</button>
+                    <p class="muted" data-i18n="lbl_wifi_hint">ESP32 will restart. AP stays as fallback.</p>
                 </div>
-            </div>
             </div>
         </section>
 
-        <!-- Depuración / Logs -->
-        <details class="log-spoiler card small glass">
-            <summary id="rawTitle" data-i18n="rawTitle">Consola de Sistema</summary>
-            <pre id="log" class="logbox" data-i18n="log_waiting">Esperando conexión...</pre>
+        <!-- Console -->
+        <details class="console-panel">
+            <summary id="rawTitle" data-i18n="rawTitle">System Console</summary>
+            <pre id="log" class="console-output" data-i18n="log_waiting">Waiting for connection...</pre>
         </details>
 
         <div id="notification" class="hidden"></div>
         <div id="toast-container"></div>
     </main>
-
-    <footer class="footer">
-        <div id="footerText" data-i18n="footerText">Versión 1.2 • ESP32 Control</div>
-    </footer>
 
     <script src="./app.js"></script>
 </body>
