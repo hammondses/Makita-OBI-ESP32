@@ -13,6 +13,8 @@ This fork ports [urtziDV/Makita-OBI-ESP32](https://github.com/urtziDV/Makita-OBI
 - **Garbage rejection** — validates OneWire responses (all-0xFF / all-0x00 = no battery) and parsed voltages (cell > 5V = mid-read disconnect)
 - **Redesigned web UI** — sidebar dashboard layout, responsive, works offline (no Google Fonts), English default with Spanish toggle
 - **WebSocket state sync** — new clients get cached data immediately, manual reads sync with auto-detection state
+- **Battery history database** — persistent per-battery history stored on LittleFS with long-term voltage/SOH tracking
+- **WiFi network scanner** — scan and select networks from the UI instead of typing SSIDs manually
 
 See [ESP32-C3-ADAPTATION.md](./ESP32-C3-ADAPTATION.md) for the full technical changelog.
 
@@ -23,9 +25,15 @@ See [ESP32-C3-ADAPTATION.md](./ESP32-C3-ADAPTATION.md) for the full technical ch
 - Charge cycle counter, lock status, manufacturing date
 - SOH (State of Health) estimation and balancing assistant
 - Real-time voltage history chart
+- **Battery history** — per-battery long-term history with voltage trends, charge cycles, and SOH tracking
+- **Inline history view** — browse past batteries when no battery is connected, view connected battery's history by scrolling down
+- **Auto-detect toggle** — pause battery detection from the UI (useful during WiFi configuration)
+- **WiFi scanner** — scan for networks and select from a dropdown in Settings
+- **History data validation** — rejects out-of-range voltage readings before storing
 - LED test and error clearing (STANDARD controller batteries)
 - Dark mode, bilingual (EN/ES), OTA firmware updates
 - Dual WiFi: AP mode + station mode with mDNS (`http://makita.local`)
+- Captive portal with proper connectivity-check handling (no browser login nag)
 
 ## Hardware
 

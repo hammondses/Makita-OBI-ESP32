@@ -59,6 +59,11 @@ unsigned long lastDynamicRead = 0;
 uint8_t detectionFailCount = 0;          // consecutive static read failures
 uint8_t dynamicFailCount = 0;            // consecutive dynamic read failures
 SupportedFeatures cached_features;
+bool historyRecorded = false;            // one snapshot per insertion
+static unsigned long browserEpoch = 0;   // unix epoch from browser
+static unsigned long browserSyncMillis = 0; // millis() when synced
+volatile bool wifiScanRequested = false;  // set by WS handler, consumed by loop
+bool autoDetectEnabled = true;           // toggled from UI
 
 // --- Funciones de Comunicación ---
 
@@ -136,6 +141,231 @@ void logToClients(const String& message, LogLevel level) {
     sendFeedback("debug", prefix + message);
 }
 
+// --- Battery History ---
+
+// History file header (12 bytes)
+struct __attribute__((packed)) HistoryHeader {
+    uint8_t  magic[2];      // 0xBA 0x7E
+    uint8_t  version;       // format version
+    uint8_t  cell_count;    // 4 or 5
+    char     model[8];      // null-padded model name
+};
+
+// History record (24 bytes)
+struct __attribute__((packed)) HistoryRecord {
+    uint32_t timestamp;     // unix seconds
+    uint16_t charge_cycles;
+    uint16_t pack_voltage;  // millivolts
+    uint16_t cell_voltages[5]; // millivolts, unused=0
+    uint16_t cell_diff;     // millivolts×10
+    int16_t  temp1;         // °C×100
+    int16_t  temp2;         // °C×100
+};
+
+// Get best available unix timestamp: NTP > browser sync > uptime
+uint32_t getTimestamp() {
+    time_t now = time(nullptr);
+    if (now > 1700000000) return (uint32_t)now;  // NTP synced
+    if (browserEpoch > 0) return (uint32_t)(browserEpoch + (millis() - browserSyncMillis) / 1000);
+    return (uint32_t)(millis() / 1000);  // fallback: uptime
+}
+
+String romIdToFilename(const String& rom_id) {
+    String clean;
+    for (unsigned int i = 0; i < rom_id.length(); i++) {
+        if (rom_id[i] != ' ') clean += rom_id[i];
+    }
+    return "/h/" + clean;
+}
+
+void appendHistoryRecord(const BatteryData& data) {
+    if (data.rom_id.length() == 0) {
+        logToClients("History: empty ROM ID, skipping", LOG_LEVEL_INFO);
+        return;
+    }
+
+    // Sanity gate: reject snapshots with obviously bad readings
+    for (int i = 0; i < data.cell_count; i++) {
+        if (data.cell_voltages[i] < 2.0f || data.cell_voltages[i] > 4.5f) {
+            logToClients("History: cell " + String(i+1) + " out of range (" +
+                         String(data.cell_voltages[i], 3) + "V), skipping", LOG_LEVEL_INFO);
+            return;
+        }
+    }
+    if (data.pack_voltage < 8.0f || data.pack_voltage > 23.0f) {
+        logToClients("History: pack voltage out of range (" +
+                     String(data.pack_voltage, 2) + "V), skipping", LOG_LEVEL_INFO);
+        return;
+    }
+
+    String path = romIdToFilename(data.rom_id);
+    logToClients("History: writing to " + path, LOG_LEVEL_INFO);
+
+    File f = LittleFS.open(path, "a");
+    if (!f) {
+        logToClients("History: failed to open " + path, LOG_LEVEL_INFO);
+        return;
+    }
+
+    if (f.size() == 0) {
+        HistoryHeader hdr = {};
+        hdr.magic[0] = 0xBA;
+        hdr.magic[1] = 0x7E;
+        hdr.version = 1;
+        hdr.cell_count = (uint8_t)data.cell_count;
+        strncpy(hdr.model, data.model.c_str(), sizeof(hdr.model));
+        f.write((uint8_t*)&hdr, sizeof(hdr));
+    }
+
+    HistoryRecord rec = {};
+    rec.timestamp = getTimestamp();
+    rec.charge_cycles = (uint16_t)data.charge_cycles;
+    rec.pack_voltage = (uint16_t)(data.pack_voltage * 1000.0f);
+    for (int i = 0; i < 5; i++) {
+        rec.cell_voltages[i] = (i < data.cell_count)
+            ? (uint16_t)(data.cell_voltages[i] * 1000.0f) : 0;
+    }
+    rec.cell_diff = (uint16_t)(data.cell_diff * 10000.0f);
+    rec.temp1 = (int16_t)(data.temp1 * 100.0f);
+    rec.temp2 = (int16_t)(data.temp2 * 100.0f);
+    size_t written = f.write((uint8_t*)&rec, sizeof(rec));
+    size_t fileSize = f.size();
+    f.close();
+    logToClients("History snapshot saved (" + String(written) + "B, file=" + String(fileSize) + "B)", LOG_LEVEL_INFO);
+}
+
+void sendBatteryList(AsyncWebSocketClient* client) {
+    DynamicJsonDocument doc(4096);
+    doc["type"] = "battery_list";
+    JsonArray arr = doc.createNestedArray("data");
+
+    File dir = LittleFS.open("/h");
+    if (!dir || !dir.isDirectory()) {
+        String out;
+        serializeJson(doc, out);
+        client->text(out);
+        return;
+    }
+
+    File entry = dir.openNextFile();
+    while (entry) {
+        if (!entry.isDirectory() && entry.size() >= (int)sizeof(HistoryHeader)) {
+            HistoryHeader hdr;
+            entry.read((uint8_t*)&hdr, sizeof(hdr));
+
+            if (hdr.magic[0] == 0xBA && hdr.magic[1] == 0x7E) {
+                size_t dataBytes = entry.size() - sizeof(HistoryHeader);
+                int count = dataBytes / sizeof(HistoryRecord);
+
+                JsonObject obj = arr.createNestedObject();
+                // entry.name() may return full path or just filename
+                String fname = String(entry.name());
+                int lastSlash = fname.lastIndexOf('/');
+                if (lastSlash >= 0) fname = fname.substring(lastSlash + 1);
+                obj["rom_id"] = fname;
+                char modelBuf[9] = {};
+                memcpy(modelBuf, hdr.model, 8);
+                obj["model"] = String(modelBuf);
+                obj["cell_count"] = hdr.cell_count;
+                obj["readings"] = count;
+
+                // Read last record for "last seen" timestamp
+                if (count > 0) {
+                    HistoryRecord lastRec;
+                    entry.seek(entry.size() - sizeof(HistoryRecord));
+                    entry.read((uint8_t*)&lastRec, sizeof(lastRec));
+                    obj["last_seen"] = lastRec.timestamp;
+                    obj["last_voltage"] = lastRec.pack_voltage / 1000.0f;
+                    obj["last_cycles"] = lastRec.charge_cycles;
+                    obj["last_diff"] = lastRec.cell_diff / 10000.0f;
+                }
+            }
+        }
+        entry = dir.openNextFile();
+    }
+
+    String out;
+    serializeJson(doc, out);
+    client->text(out);
+}
+
+void sendBatteryHistory(AsyncWebSocketClient* client, const String& rom_id) {
+    String path = romIdToFilename(rom_id);
+    DynamicJsonDocument doc(24576);
+    doc["type"] = "battery_history";
+    doc["rom_id"] = rom_id;
+    JsonArray arr = doc.createNestedArray("data");
+
+    File f = LittleFS.open(path, "r");
+    if (!f || f.size() < (int)sizeof(HistoryHeader)) {
+        String out;
+        serializeJson(doc, out);
+        client->text(out);
+        return;
+    }
+
+    HistoryHeader hdr;
+    f.read((uint8_t*)&hdr, sizeof(hdr));
+    char modelBuf[9] = {};
+    memcpy(modelBuf, hdr.model, 8);
+    doc["model"] = String(modelBuf);
+    doc["cell_count"] = hdr.cell_count;
+
+    size_t dataBytes = f.size() - sizeof(HistoryHeader);
+    int total = dataBytes / sizeof(HistoryRecord);
+    int cap = 100;
+    int skip = (total > cap) ? total - cap : 0;
+    if (skip > 0) f.seek(sizeof(HistoryHeader) + skip * sizeof(HistoryRecord));
+
+    HistoryRecord rec;
+    int count = (total > cap) ? cap : total;
+    for (int i = 0; i < count; i++) {
+        if (f.read((uint8_t*)&rec, sizeof(rec)) != sizeof(rec)) break;
+        JsonObject obj = arr.createNestedObject();
+        obj["ts"] = rec.timestamp;
+        obj["cycles"] = rec.charge_cycles;
+        obj["pack_mv"] = rec.pack_voltage;
+        JsonArray cells = obj.createNestedArray("cells");
+        for (int c = 0; c < hdr.cell_count; c++) {
+            cells.add(rec.cell_voltages[c]);
+        }
+        obj["diff"] = rec.cell_diff;
+        obj["t1"] = rec.temp1;
+        obj["t2"] = rec.temp2;
+    }
+    f.close();
+
+    String out;
+    serializeJson(doc, out);
+    client->text(out);
+}
+
+void deleteHistory(const String& rom_id) {
+    String path = romIdToFilename(rom_id);
+    if (LittleFS.exists(path)) {
+        LittleFS.remove(path);
+        Serial.println("History deleted: " + path);
+    }
+}
+
+void sendWifiStatus(AsyncWebSocketClient* client) {
+    DynamicJsonDocument doc(512);
+    doc["type"] = "wifi_status";
+    bool staConnected = WiFi.isConnected();
+    doc["sta_connected"] = staConnected;
+    doc["sta_ssid"] = current_wifi_ssid;
+    if (staConnected) {
+        doc["sta_ip"] = WiFi.localIP().toString();
+        doc["sta_rssi"] = WiFi.RSSI();
+    }
+    doc["ap_ip"] = WiFi.softAPIP().toString();
+    doc["ap_clients"] = WiFi.softAPgetStationNum();
+    doc["has_time"] = (getTimestamp() > 1700000000);
+    String out;
+    serializeJson(doc, out);
+    client->text(out);
+}
+
 /**
  * Manejador principal de eventos WebSocket: procesa comandos desde la interfaz web.
  */
@@ -172,12 +402,17 @@ void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsE
                 lastDynamicRead = millis();
                 sendJsonResponse("static_data", cached_data, &cached_features);
                 sendPresence(true);
+                if (!historyRecorded) {
+                    appendHistoryRecord(cached_data);
+                    historyRecorded = true;
+                }
             } else {
                 // Reset auto-detection state so loop re-detects
                 autoReadIdentified = false;
                 lastPresenceState = false;
                 detectionFailCount = 0;
                 dynamicFailCount = 0;
+                historyRecorded = false;
                 sendPresence(false);
                 sendFeedback("error", statusToString(status));
             }
@@ -194,6 +429,7 @@ void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsE
                     lastPresenceState = false;
                     detectionFailCount = 0;
                     dynamicFailCount = 0;
+                    historyRecorded = false;
                     sendPresence(false);
                     logToClients("Battery disconnected.", LOG_LEVEL_INFO);
                 } else {
@@ -239,6 +475,42 @@ void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsE
             logToClients("WiFi configured. Restarting...", LOG_LEVEL_INFO);
             delay(1000);
             ESP.restart();
+        } else if (command == "set_time") {
+            // Browser sends unix timestamp so ESP32 has a clock without NTP
+            unsigned long epoch = doc["epoch"];
+            if (epoch > 1700000000) {
+                browserEpoch = epoch;
+                browserSyncMillis = millis();
+                logToClients("Clock synced from browser", LOG_LEVEL_INFO);
+            }
+        } else if (command == "get_wifi_status") {
+            sendWifiStatus(client);
+        } else if (command == "list_batteries") {
+            sendBatteryList(client);
+        } else if (command == "get_history") {
+            String rid = doc["rom_id"].as<String>();
+            sendBatteryHistory(client, rid);
+        } else if (command == "clear_history") {
+            String rid = doc["rom_id"].as<String>();
+            deleteHistory(rid);
+            sendBatteryList(client);  // refresh list for requester
+            logToClients("History cleared for " + rid, LOG_LEVEL_INFO);
+        } else if (command == "scan_wifi") {
+            wifiScanRequested = true;
+        } else if (command == "set_auto_detect") {
+            autoDetectEnabled = doc["enabled"];
+            logToClients(String("Auto-detect: ") + (autoDetectEnabled ? "ON" : "OFF"), LOG_LEVEL_INFO);
+            if (!autoDetectEnabled) {
+                // If turning off while battery was identified, send disconnect
+                if (autoReadIdentified) {
+                    autoReadIdentified = false;
+                    lastPresenceState = false;
+                    detectionFailCount = 0;
+                    dynamicFailCount = 0;
+                    historyRecorded = false;
+                    sendPresence(false);
+                }
+            }
         }
     }
 }
@@ -327,6 +599,12 @@ void setup() {
         WiFi.begin(current_wifi_ssid.c_str(), current_wifi_pass.c_str());
         // No bloqueamos el setup; la conexión se gestionará de fondo
     }
+
+    configTime(0, 0, "pool.ntp.org");
+
+    // Create history directory and log filesystem usage
+    if (!LittleFS.exists("/h")) LittleFS.mkdir("/h");
+    Serial.printf("LittleFS used: %u / %u bytes\n", LittleFS.usedBytes(), LittleFS.totalBytes());
     
     ws.onEvent(onWebSocketEvent);
     server.addHandler(&ws);
@@ -361,8 +639,20 @@ void setup() {
 
     // Servir archivos estáticos
     server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
-    
+
     dnsServer.start(53, "*", WiFi.softAPIP());
+
+    // Handle captive portal detection so browsers stop nagging once on the page
+    server.on("/generate_204", HTTP_GET, [](AsyncWebServerRequest *r){ r->send(204); });
+    server.on("/gen_204", HTTP_GET, [](AsyncWebServerRequest *r){ r->send(204); });
+    server.on("/canonical.html", HTTP_GET, [](AsyncWebServerRequest *r){
+        r->send(200, "text/html", "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>");
+    });
+    server.on("/hotspot-detect.html", HTTP_GET, [](AsyncWebServerRequest *r){
+        r->send(200, "text/html", "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>");
+    });
+    server.on("/connecttest.txt", HTTP_GET, [](AsyncWebServerRequest *r){ r->send(200, "text/plain", "Microsoft Connect Test"); });
+
     server.addHandler(new CaptiveRequestHandler());
     
     if (MDNS.begin("makita")) {
@@ -377,10 +667,49 @@ void loop() {
     dnsServer.processNextRequest();
     ws.cleanupClients();
 
+    // --- Synchronous WiFi scan (requested from Settings) ---
+    if (wifiScanRequested) {
+        wifiScanRequested = false;
+        logToClients("WiFi scan starting...", LOG_LEVEL_INFO);
+
+        // Disconnect STA temporarily if it's trying to connect
+        // (ESP32 rejects scans while STA is in connecting state)
+        bool wasConnecting = (WiFi.status() != WL_CONNECTED && current_wifi_ssid.length() > 0);
+        if (wasConnecting) {
+            WiFi.disconnect(false);  // don't erase saved config
+            delay(100);
+        }
+
+        // Synchronous, passive scan, 120ms/channel (~1.5s total)
+        int16_t n = WiFi.scanNetworks(false, false, true, 120);
+
+        DynamicJsonDocument scanDoc(2048);
+        scanDoc["type"] = "wifi_list";
+        JsonArray arr = scanDoc.createNestedArray("data");
+        if (n > 0) {
+            for (int i = 0; i < n; i++) {
+                JsonObject net = arr.createNestedObject();
+                net["ssid"] = WiFi.SSID(i);
+                net["rssi"] = WiFi.RSSI(i);
+                net["secure"] = (WiFi.encryptionType(i) != WIFI_AUTH_OPEN);
+            }
+        }
+        String out;
+        serializeJson(scanDoc, out);
+        ws.textAll(out);
+        WiFi.scanDelete();
+        logToClients("WiFi scan: " + String(n > 0 ? n : 0) + " networks found", LOG_LEVEL_INFO);
+
+        // Reconnect STA if it was previously configured
+        if (wasConnecting) {
+            WiFi.begin(current_wifi_ssid.c_str(), current_wifi_pass.c_str());
+        }
+    }
+
     unsigned long now = millis();
 
     // --- Auto-detect battery ---
-    if (!autoReadIdentified) {
+    if (autoDetectEnabled && !autoReadIdentified) {
         unsigned long interval = (detectionFailCount >= MAX_DETECTION_ATTEMPTS)
                                  ? BACKOFF_INTERVAL : DETECTION_INTERVAL;
 
@@ -406,6 +735,12 @@ void loop() {
                 status = bms.readDynamicData(cached_data);
                 if (status == BMSStatus::OK) {
                     sendJsonResponse("dynamic_data", cached_data, nullptr);
+
+                    // Record history snapshot once per insertion
+                    if (!historyRecorded) {
+                        appendHistoryRecord(cached_data);
+                        historyRecorded = true;
+                    }
                 }
                 lastDynamicRead = millis();
             } else {
@@ -420,7 +755,7 @@ void loop() {
     }
 
     // --- Auto-poll dynamic data while battery is identified ---
-    if (autoReadIdentified && (now - lastDynamicRead > DYNAMIC_READ_INTERVAL)) {
+    if (autoDetectEnabled && autoReadIdentified && (now - lastDynamicRead > DYNAMIC_READ_INTERVAL)) {
         lastDynamicRead = now;
         BMSStatus status = bms.readDynamicData(cached_data);
 
@@ -437,6 +772,7 @@ void loop() {
                 lastPresenceState = false;
                 detectionFailCount = 0;
                 dynamicFailCount = 0;
+                historyRecorded = false;
                 sendPresence(false);
                 logToClients("Battery disconnected.", LOG_LEVEL_INFO);
             }

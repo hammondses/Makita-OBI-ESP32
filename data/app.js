@@ -48,7 +48,7 @@ const TRANSLATIONS = {
     log_clear_confirm: "Borrar errores del BMS?",
     log_ws_error: "Error WebSocket.",
     log_evt_config: "Configurando eventos...",
-    lbl_auto: "Lectura Real-time",
+    lbl_auto_detect: "Auto-detectar",
     lbl_temp: "Temperaturas",
     lbl_imbalance: "Desbalanceo (HUD)",
     lbl_report: "Generar informe",
@@ -86,7 +86,29 @@ const TRANSLATIONS = {
     ota_title: "Actualizacion de Firmware",
     ota_desc: "Sube un archivo .bin para actualizar.",
     btn_ota_select: "Seleccionar Archivo",
-    ota_msg_uploading: "Subiendo..."
+    ota_msg_uploading: "Subiendo...",
+    lbl_sta_status: "Estacion:",
+    lbl_ap_status: "Punto de Acceso:",
+    lbl_clock: "Reloj:",
+    lbl_history_nav: "Historial",
+    btn_history: "Historial de Baterias",
+    lbl_history_title: "Historial de Baterias",
+    btn_back: "Volver a Lista",
+    hdr_model: "Modelo",
+    hdr_rom: "ID ROM",
+    hdr_cycles: "Ciclos",
+    hdr_soh: "SOH",
+    hdr_readings: "Lecturas",
+    hdr_last_seen: "Ultimo",
+    hdr_last_v: "Voltaje",
+    msg_no_history: "Sin historial registrado.",
+    btn_delete: "Borrar",
+    btn_confirm_delete: "Confirmar borrar historial de esta bateria?",
+    lbl_longterm_history: "Historial a Largo Plazo",
+    btn_scan_wifi: "Escanear",
+    msg_scanning: "Escaneando...",
+    lbl_select_network: "-- Seleccionar Red --",
+    btn_home: "Inicio"
   },
   en: {
     subtitle: "Battery Diagnostics",
@@ -119,7 +141,7 @@ const TRANSLATIONS = {
     log_clear_confirm: "Clear BMS errors?",
     log_ws_error: "WebSocket error.",
     log_evt_config: "Setting up events...",
-    lbl_auto: "Real-time Updates",
+    lbl_auto_detect: "Auto-detect",
     lbl_temp: "Temperature",
     lbl_imbalance: "Cell Imbalance (HUD)",
     lbl_report: "Export Report",
@@ -157,7 +179,29 @@ const TRANSLATIONS = {
     ota_title: "Firmware Update",
     ota_desc: "Upload a .bin file to update.",
     btn_ota_select: "Select File",
-    ota_msg_uploading: "Uploading..."
+    ota_msg_uploading: "Uploading...",
+    lbl_sta_status: "Station:",
+    lbl_ap_status: "Access Point:",
+    lbl_clock: "Clock:",
+    lbl_history_nav: "History",
+    btn_history: "Battery History",
+    lbl_history_title: "Battery History",
+    btn_back: "Back to List",
+    hdr_model: "Model",
+    hdr_rom: "ROM ID",
+    hdr_cycles: "Cycles",
+    hdr_soh: "SOH",
+    hdr_readings: "Readings",
+    hdr_last_seen: "Last Seen",
+    hdr_last_v: "Voltage",
+    msg_no_history: "No battery history recorded yet.",
+    btn_delete: "Delete",
+    btn_confirm_delete: "Delete history for this battery?",
+    lbl_longterm_history: "Long-term History",
+    btn_scan_wifi: "Scan",
+    msg_scanning: "Scanning...",
+    lbl_select_network: "-- Select Network --",
+    btn_home: "Home"
   }
 };
 
@@ -167,8 +211,8 @@ let socket;
 let isConnected = false;
 let lastData = null;
 let lastPresence = false;
-let pollInterval = null;
 let historyChart = null;
+let batteryHistoryChart = null;
 const MAX_HISTORY = 40;
 let historyData = {
   labels: [],
@@ -220,9 +264,11 @@ document.addEventListener('DOMContentLoaded', () => {
   setupMobileMenu();
   connect();
 
-  if (localStorage.getItem('makita_auto') === 'true') {
+  // Restore auto-detect preference (defaults to on)
+  const autoSaved = localStorage.getItem('makita_auto');
+  if (autoSaved === 'false') {
     const bAuto = el('checkAuto');
-    if (bAuto) bAuto.checked = true;
+    if (bAuto) bAuto.checked = false;
   }
 
   initChart();
@@ -422,6 +468,12 @@ function connect() {
       refreshStatus();
       sendCommand('presence');
       sendCommand('get_config');
+      // Sync browser clock to ESP32 (fallback when no NTP)
+      sendCommand('set_time', { epoch: Math.floor(Date.now() / 1000) });
+      sendCommand('list_batteries');
+      // Sync auto-detect state to firmware
+      const autoOn = el('checkAuto') ? el('checkAuto').checked : true;
+      sendCommand('set_auto_detect', { enabled: autoOn });
     };
 
     socket.onclose = () => {
@@ -457,8 +509,16 @@ function handleMessage(msg) {
     renderStaticTable(msg.data);
     renderCells(msg.data);
     if (msg.features) updateButtonStates(msg.features);
-    el('overviewCard').classList.remove('hidden');
+    // Only switch views if not in Settings
+    if (el('systemSection').classList.contains('hidden')) {
+      el('overviewCard').classList.remove('hidden');
+      el('batteryListPanel').classList.add('hidden');
+    }
     if (msg.data.cell_voltages) updateChart(msg.data.cell_voltages);
+    // Auto-load long-term history for connected battery
+    if (msg.data.rom_id) {
+      sendCommand('get_history', { rom_id: msg.data.rom_id });
+    }
   } else if (msg.type === 'dynamic_data') {
     if (lastData && msg.data) {
       // Reject obviously bad data before rendering
@@ -483,6 +543,35 @@ function handleMessage(msg) {
       applyTranslations();
     }
     if (msg.theme) setTheme(msg.theme, true);
+  } else if (msg.type === 'wifi_status') {
+    renderWifiStatus(msg);
+  } else if (msg.type === 'battery_list') {
+    renderBatteryList(msg.data);
+    // Show battery list panel when no battery connected and not in Settings
+    if (el('overviewCard').classList.contains('hidden') && el('systemSection').classList.contains('hidden')) {
+      el('batteryListPanel').classList.remove('hidden');
+    }
+  } else if (msg.type === 'battery_history') {
+    renderBatteryHistory(msg);
+  } else if (msg.type === 'wifi_list') {
+    const sel = el('wifiSSID');
+    const bScan = el('btnScanWifi');
+    if (bScan) {
+      bScan.textContent = t('btn_scan_wifi');
+      bScan.disabled = false;
+    }
+    if (sel) {
+      sel.innerHTML = `<option value="">${t('lbl_select_network')}</option>`;
+      if (msg.data) {
+        msg.data.forEach(n => {
+          const opt = document.createElement('option');
+          opt.value = n.ssid;
+          const lock = n.secure ? '\u{1F512} ' : '';
+          opt.textContent = `${lock}${n.ssid} (${n.rssi} dBm)`;
+          sel.appendChild(opt);
+        });
+      }
+    }
   }
 }
 
@@ -545,14 +634,18 @@ function renderCells(d) {
   renderAdvancedDiagnostics(d);
 }
 
+function computeSOH(cycles, cellDiff) {
+  let health = 100 - (cycles / 10);
+  health -= (cellDiff * 40);
+  return Math.max(0, Math.round(health));
+}
+
 function renderAdvancedDiagnostics(d) {
   let fatigueLevel = 'fatigue_low';
   if (d.charge_cycles > 150 || d.cell_diff > 0.15) fatigueLevel = 'fatigue_med';
   if (d.charge_cycles > 300 || d.cell_diff > 0.25) fatigueLevel = 'fatigue_high';
 
-  let health = 100 - (d.charge_cycles / 10);
-  health -= (d.cell_diff * 40);
-  health = Math.max(0, Math.round(health));
+  const health = computeSOH(d.charge_cycles, d.cell_diff);
 
   const ring = el('sohRing');
   const label = el('sohLabel');
@@ -685,15 +778,23 @@ function updateButtonStates(f) {
   el('btnClearErrors').disabled = !f.clear_errors;
   el('btnLed').disabled = !f.led_test;
   el('serviceActions').classList.toggle('hidden', !(f.clear_errors || f.led_test));
-  toggleAutoPolling(el('checkAuto').checked);
 }
 
-function toggleAutoPolling(active) {
-  clearInterval(pollInterval);
-  pollInterval = null;
+function toggleAutoDetect(active) {
   savePref('auto', active);
-  if (active && isConnected && !el('btnReadDynamic').disabled) {
-    pollInterval = setInterval(() => { sendCommand('read_dynamic'); }, 3000);
+  sendCommand('set_auto_detect', { enabled: active });
+}
+
+function showHome() {
+  el('systemSection').classList.add('hidden');
+  el('actionBar').classList.remove('hidden');
+  if (lastPresence && lastData) {
+    el('overviewCard').classList.remove('hidden');
+    el('batteryListPanel').classList.add('hidden');
+  } else {
+    el('overviewCard').classList.add('hidden');
+    el('batteryListPanel').classList.remove('hidden');
+    sendCommand('list_batteries');
   }
 }
 
@@ -702,8 +803,19 @@ function updatePresence(present) {
   refreshStatus();
   if (!present && isConnected) {
     el('overviewCard').classList.add('hidden');
+    el('connectedHistoryPanel').classList.add('hidden');
     el('serviceActions').classList.add('hidden');
     lastData = null;
+    // Clean up connected history chart
+    if (batteryHistoryChart) {
+      batteryHistoryChart.destroy();
+      batteryHistoryChart = null;
+    }
+    // Show battery list (unless user is in Settings)
+    sendCommand('list_batteries');
+    if (el('systemSection').classList.contains('hidden')) {
+      el('batteryListPanel').classList.remove('hidden');
+    }
   }
 }
 
@@ -757,7 +869,7 @@ function setupEventListeners() {
   if (bES) bES.addEventListener('click', () => setLang('es'));
 
   const bAuto = el('checkAuto');
-  if (bAuto) bAuto.addEventListener('change', (e) => toggleAutoPolling(e.target.checked));
+  if (bAuto) bAuto.addEventListener('change', (e) => toggleAutoDetect(e.target.checked));
 
   const bLight = el('themeLight');
   const bDark = el('themeDark');
@@ -767,8 +879,30 @@ function setupEventListeners() {
   const bExp = el('btnExport');
   if (bExp) bExp.addEventListener('click', generateReport);
 
+  // Navigation: Home button
+  const bHome = el('btnHome');
+  if (bHome) bHome.addEventListener('click', showHome);
+
+  // Navigation: Settings button
   const bSys = el('btnSystem');
-  if (bSys) bSys.addEventListener('click', () => el('systemSection').classList.toggle('hidden'));
+  if (bSys) bSys.addEventListener('click', () => {
+    const opening = el('systemSection').classList.contains('hidden');
+    if (opening) {
+      el('systemSection').classList.remove('hidden');
+      el('overviewCard').classList.add('hidden');
+      el('batteryListPanel').classList.add('hidden');
+      el('actionBar').classList.add('hidden');
+      sendCommand('get_wifi_status');
+      sendCommand('scan_wifi');
+      const bScanBtn = el('btnScanWifi');
+      if (bScanBtn) {
+        bScanBtn.textContent = t('msg_scanning');
+        bScanBtn.disabled = true;
+      }
+    } else {
+      showHome();
+    }
+  });
 
   const bOta = el('btnOta');
   const fOta = el('otaFile');
@@ -786,6 +920,15 @@ function setupEventListeners() {
       if (confirm(`Configure WiFi and restart?\nNetwork: ${ssid}`)) {
         sendCommand('set_wifi', { ssid: ssid, pass: pass });
       }
+    });
+  }
+
+  const bScan = el('btnScanWifi');
+  if (bScan) {
+    bScan.addEventListener('click', () => {
+      bScan.textContent = t('msg_scanning');
+      bScan.disabled = true;
+      sendCommand('scan_wifi');
     });
   }
 }
@@ -826,4 +969,195 @@ function uploadFirmware(file) {
   };
 
   xhr.send(formData);
+}
+
+// ── WiFi Status ──
+
+function renderWifiStatus(msg) {
+  const sta = el('staStatusText');
+  const ap = el('apStatusText');
+  const clock = el('clockStatusText');
+
+  if (sta) {
+    if (msg.sta_connected) {
+      sta.textContent = `${msg.sta_ssid} — ${msg.sta_ip} (${msg.sta_rssi} dBm)`;
+      sta.className = 'wifi-val connected';
+    } else if (msg.sta_ssid && msg.sta_ssid.length > 0) {
+      sta.textContent = `${msg.sta_ssid} — not connected`;
+      sta.className = 'wifi-val disconnected';
+    } else {
+      sta.textContent = 'Not configured';
+      sta.className = 'wifi-val';
+    }
+  }
+
+  if (ap) {
+    ap.textContent = `${msg.ap_ip} (${msg.ap_clients} client${msg.ap_clients !== 1 ? 's' : ''})`;
+    ap.className = 'wifi-val connected';
+  }
+
+  if (clock) {
+    clock.textContent = msg.has_time ? 'Synced' : 'Not synced (1970)';
+    clock.className = msg.has_time ? 'wifi-val connected' : 'wifi-val disconnected';
+  }
+}
+
+// ── Battery History ──
+
+function renderBatteryList(data) {
+  const body = el('batteryListBody');
+  const empty = el('historyEmpty');
+  const detail = el('batteryListDetail');
+  if (!body) return;
+
+  // Hide detail/chart when list refreshes
+  if (detail) detail.classList.add('hidden');
+  if (batteryHistoryChart) {
+    batteryHistoryChart.destroy();
+    batteryHistoryChart = null;
+  }
+
+  if (!data || data.length === 0) {
+    body.innerHTML = '';
+    if (empty) empty.classList.remove('hidden');
+    return;
+  }
+  if (empty) empty.classList.add('hidden');
+
+  body.innerHTML = data.map(b => {
+    const lastDate = b.last_seen ? new Date(b.last_seen * 1000).toLocaleDateString() : '—';
+    const voltage = b.last_voltage ? b.last_voltage.toFixed(2) + 'V' : '—';
+    const cycles = b.last_cycles != null ? b.last_cycles : '—';
+    const soh = b.last_cycles != null ? computeSOH(b.last_cycles, b.last_diff || 0) : '—';
+    const sohClass = typeof soh === 'number' ? (soh > 80 ? 'soh-good' : (soh > 50 ? 'soh-fair' : 'soh-poor')) : '';
+    return `<tr data-rom="${b.rom_id}">
+      <td><strong>${b.model || '?'}</strong></td>
+      <td class="rom-id-cell">${b.rom_id}</td>
+      <td>${cycles}</td>
+      <td><span class="${sohClass}">${typeof soh === 'number' ? soh + '%' : soh}</span></td>
+      <td>${b.readings}</td>
+      <td>${lastDate}</td>
+      <td>${voltage}</td>
+      <td><button class="btn-delete" data-rom="${b.rom_id}">${t('btn_delete')}</button></td>
+    </tr>`;
+  }).join('');
+
+  // Row click → show detail
+  body.querySelectorAll('tr').forEach(row => {
+    row.addEventListener('click', (e) => {
+      if (e.target.classList.contains('btn-delete')) return;
+      const rid = row.dataset.rom;
+      sendCommand('get_history', { rom_id: rid });
+    });
+  });
+
+  // Delete buttons
+  body.querySelectorAll('.btn-delete').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (confirm(t('btn_confirm_delete'))) {
+        sendCommand('clear_history', { rom_id: btn.dataset.rom });
+      }
+    });
+  });
+}
+
+function renderBatteryHistory(msg) {
+  const isConnected = !el('overviewCard').classList.contains('hidden');
+
+  let canvas, infoEl, panel;
+  if (isConnected) {
+    canvas = el('connectedHistoryChart');
+    infoEl = el('connectedHistoryInfo');
+    panel = el('connectedHistoryPanel');
+  } else {
+    canvas = el('batteryListChart');
+    infoEl = el('batteryListDetailInfo');
+    panel = el('batteryListDetail');
+  }
+
+  if (panel) panel.classList.remove('hidden');
+
+  if (infoEl) {
+    const lastRec = msg.data.length > 0 ? msg.data[msg.data.length - 1] : null;
+    const cyclesStr = lastRec && lastRec.cycles != null ? lastRec.cycles : '—';
+    const diffVal = lastRec && lastRec.diff != null ? lastRec.diff / 10000 : 0;
+    const sohStr = lastRec && lastRec.cycles != null ? computeSOH(lastRec.cycles, diffVal) + '%' : '—';
+    infoEl.innerHTML =
+      `<span>${t('model')}: <strong>${msg.model || '?'}</strong></span>` +
+      `<span>${t('rom_id')}: <strong style="font-family:monospace;font-size:11px">${msg.rom_id}</strong></span>` +
+      `<span>${t('hdr_readings')}: <strong>${msg.data.length}</strong></span>` +
+      `<span>${t('cycles')}: <strong>${cyclesStr}</strong></span>` +
+      `<span>${t('lbl_soh')}: <strong>${sohStr}</strong></span>`;
+  }
+
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  if (batteryHistoryChart) {
+    batteryHistoryChart.destroy();
+    batteryHistoryChart = null;
+  }
+
+  const cellCount = msg.cell_count || 5;
+  const labels = msg.data.map(r => {
+    const d = new Date(r.ts * 1000);
+    return d.toLocaleDateString();
+  });
+
+  const packData = msg.data.map(r => r.pack_mv / 1000);
+
+  const datasets = [{
+    label: t('lbl_total_voltage'),
+    data: packData,
+    borderColor: '#2563eb',
+    backgroundColor: 'rgba(37,99,235,0.08)',
+    borderWidth: 2.5,
+    pointRadius: 3,
+    tension: 0.3,
+    fill: false
+  }];
+
+  for (let c = 0; c < cellCount; c++) {
+    datasets.push({
+      label: `${t('cell')} ${c + 1}`,
+      data: msg.data.map(r => (r.cells && r.cells[c] != null) ? r.cells[c] / 1000 : null),
+      borderColor: `hsl(${c * 60 + 30}, 70%, 50%)`,
+      borderWidth: 1.5,
+      pointRadius: 2,
+      tension: 0.3,
+      fill: false
+    });
+  }
+
+  batteryHistoryChart = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: {
+          ticks: { maxTicksLimit: 12, color: 'rgba(128,128,128,0.8)', font: { size: 10 } },
+          grid: { color: 'rgba(128,128,128,0.1)' }
+        },
+        y: {
+          ticks: { color: 'rgba(128,128,128,0.8)' },
+          grid: { color: 'rgba(128,128,128,0.1)' }
+        }
+      },
+      plugins: {
+        legend: {
+          display: true,
+          labels: { boxWidth: 10, font: { size: 10 }, color: 'rgba(128,128,128,0.8)' }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(3)}V`
+          }
+        }
+      }
+    }
+  });
 }

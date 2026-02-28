@@ -29,9 +29,7 @@
 
         <nav class="sidebar-nav">
             <div class="nav-group">
-                <span class="nav-label" data-i18n="sectionTitle">Operations</span>
-                <button id="btnReadStatic" class="nav-btn primary" data-i18n="btn_read">Read Info</button>
-                <button id="btnReadDynamic" class="nav-btn" disabled data-i18n="btn_dynamic">Read Voltages</button>
+                <button id="btnHome" class="nav-btn primary" data-i18n="btn_home">Home</button>
             </div>
 
             <div id="serviceActions" class="nav-group hidden">
@@ -41,11 +39,10 @@
             </div>
 
             <div class="nav-group">
-                <span class="nav-label" data-i18n="lbl_auto">Real-time Updates</span>
                 <div class="toggle-row">
-                    <span class="toggle-label" id="lblAutoPoll">Auto-poll</span>
+                    <span class="toggle-label" id="lblAutoDetect" data-i18n="lbl_auto_detect">Auto-detect</span>
                     <label class="switch" for="checkAuto">
-                        <input type="checkbox" id="checkAuto" aria-labelledby="lblAutoPoll">
+                        <input type="checkbox" id="checkAuto" checked aria-labelledby="lblAutoDetect">
                         <span class="slider"></span>
                     </label>
                 </div>
@@ -78,6 +75,12 @@
     <!-- Main Content -->
     <main class="main">
         <div id="limitedSupportAlert" class="alert-banner hidden"></div>
+
+        <!-- Action bar (inline buttons) -->
+        <div class="action-bar" id="actionBar">
+            <button id="btnReadStatic" class="action-btn primary" data-i18n="btn_read">Read Info</button>
+            <button id="btnReadDynamic" class="action-btn" disabled data-i18n="btn_dynamic">Read Voltages</button>
+        </div>
 
         <!-- Dashboard Grid -->
         <div class="dashboard hidden" id="overviewCard">
@@ -158,7 +161,47 @@
                     Export Report
                 </button>
             </div>
+
+            <!-- Connected battery long-term history (inline) -->
+            <section class="panel connected-history-panel hidden" id="connectedHistoryPanel">
+                <div class="panel-header">
+                    <h2 data-i18n="lbl_longterm_history">Long-term History</h2>
+                </div>
+                <div id="connectedHistoryInfo" class="history-detail-info"></div>
+                <div class="chart-wrap history-chart-wrap">
+                    <canvas id="connectedHistoryChart"></canvas>
+                </div>
+            </section>
         </div>
+
+        <!-- Battery list (shown when no battery connected) -->
+        <section class="panel battery-list-panel hidden" id="batteryListPanel">
+            <div class="panel-header">
+                <h2 data-i18n="lbl_history_title">Battery History</h2>
+            </div>
+            <table class="history-table" id="batteryListTable">
+                <thead>
+                    <tr>
+                        <th data-i18n="hdr_model">Model</th>
+                        <th data-i18n="hdr_rom">ROM ID</th>
+                        <th data-i18n="hdr_cycles">Cycles</th>
+                        <th data-i18n="hdr_soh">SOH</th>
+                        <th data-i18n="hdr_readings">Readings</th>
+                        <th data-i18n="hdr_last_seen">Last Seen</th>
+                        <th data-i18n="hdr_last_v">Voltage</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="batteryListBody"></tbody>
+            </table>
+            <p id="historyEmpty" class="muted hidden" data-i18n="msg_no_history">No battery history recorded yet.</p>
+            <div id="batteryListDetail" class="hidden">
+                <div id="batteryListDetailInfo" class="history-detail-info"></div>
+                <div class="chart-wrap history-chart-wrap">
+                    <canvas id="batteryListChart"></canvas>
+                </div>
+            </div>
+        </section>
 
         <!-- System & OTA -->
         <section class="panel system-panel hidden" id="systemSection">
@@ -179,7 +222,26 @@
                 </div>
                 <div class="wifi-block">
                     <h3 data-i18n="lbl_wifi_config">WiFi Station Mode</h3>
-                    <input type="text" id="wifiSSID" placeholder="SSID" data-i18n-hold="lbl_wifi_ssid">
+                    <div id="wifiStatusBox" class="wifi-status-box">
+                        <div class="wifi-status-row">
+                            <span data-i18n="lbl_sta_status">Station:</span>
+                            <span id="staStatusText" class="wifi-val">—</span>
+                        </div>
+                        <div class="wifi-status-row">
+                            <span data-i18n="lbl_ap_status">Access Point:</span>
+                            <span id="apStatusText" class="wifi-val">—</span>
+                        </div>
+                        <div class="wifi-status-row">
+                            <span data-i18n="lbl_clock">Clock:</span>
+                            <span id="clockStatusText" class="wifi-val">—</span>
+                        </div>
+                    </div>
+                    <div class="wifi-scan-row">
+                        <select id="wifiSSID" class="wifi-select">
+                            <option value="" data-i18n="lbl_select_network">-- Select Network --</option>
+                        </select>
+                        <button id="btnScanWifi" class="nav-btn ghost wifi-scan-btn" type="button" data-i18n="btn_scan_wifi">Scan</button>
+                    </div>
                     <input type="password" id="wifiPass" placeholder="Password" data-i18n-hold="lbl_wifi_pass">
                     <button id="btnSaveWifi" class="nav-btn primary" data-i18n="btn_save_wifi">Connect</button>
                     <p class="muted" data-i18n="lbl_wifi_hint">ESP32 will restart. AP stays as fallback.</p>

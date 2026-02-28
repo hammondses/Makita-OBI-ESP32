@@ -285,6 +285,37 @@ input:checked + .slider:before { transform: translateX(18px); }
     min-height: 100vh;
 }
 
+/* ── Action Bar ── */
+.action-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    max-width: 1200px;
+}
+
+.action-btn {
+    padding: 10px 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-panel);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--font);
+    transition: all 0.15s;
+}
+
+.action-btn.primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+
+.action-btn.primary:hover { background: var(--accent-hover); }
+.action-btn:hover { background: var(--border); }
+.action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
 /* ── Dashboard Grid ── */
 .dashboard {
     display: grid;
@@ -595,6 +626,59 @@ body.dark-mode .badge-success { background: rgba(22,163,74,0.15); }
     margin-top: 8px;
 }
 
+.wifi-status-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    font-size: 13px;
+}
+
+.wifi-status-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+}
+
+.wifi-status-row span:first-child {
+    color: var(--text-dim);
+}
+
+.wifi-val {
+    font-weight: 600;
+    text-align: right;
+}
+
+.wifi-val.connected { color: var(--success); }
+.wifi-val.disconnected { color: var(--error); }
+
+.wifi-scan-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.wifi-select {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    font-family: var(--font);
+}
+
+.wifi-scan-btn {
+    width: auto !important;
+    padding: 10px 16px !important;
+    white-space: nowrap;
+    background: var(--bg-panel) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+}
+
 .ota-progress { margin-top: 12px; }
 .progress-info {
     display: flex;
@@ -721,6 +805,92 @@ body.dark-mode .diag-card { background: #2a2a2a; }
 body.dark-mode .console-panel { background: #1c1c1c; }
 body.dark-mode .temp-gauge { background: #333; }
 body.dark-mode .soh-ring { border-color: #333; }
+
+/* ── Inline History Panels ── */
+.connected-history-panel { grid-column: 1 / -1; }
+.battery-list-panel { max-width: 1200px; }
+
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.history-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    padding: 8px 10px;
+    border-bottom: 2px solid var(--border);
+}
+
+.history-table td {
+    padding: 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+}
+
+.history-table tbody tr {
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.history-table tbody tr:hover {
+    background: rgba(37, 99, 235, 0.06);
+}
+
+body.dark-mode .history-table tbody tr:hover {
+    background: rgba(37, 99, 235, 0.12);
+}
+
+.history-table .rom-id-cell {
+    font-family: "Cascadia Code", "Fira Code", "SF Mono", monospace;
+    font-size: 11px;
+}
+
+.history-table .btn-delete {
+    background: none;
+    border: 1px solid var(--error);
+    color: var(--error);
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: var(--font);
+}
+
+.history-table .btn-delete:hover {
+    background: rgba(220, 38, 38, 0.1);
+}
+
+.soh-good { color: var(--success); font-weight: 600; }
+.soh-fair { color: var(--warning); font-weight: 600; }
+.soh-poor { color: var(--error); font-weight: 600; }
+
+.history-detail-info {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    flex-wrap: wrap;
+}
+
+.history-detail-info span {
+    color: var(--text-dim);
+}
+
+.history-detail-info strong {
+    color: var(--text);
+    margin-left: 4px;
+}
+
+.history-chart-wrap {
+    height: 300px;
+    position: relative;
+}
 
 /* ── Responsive ── */
 @media (max-width: 900px) {
